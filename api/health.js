@@ -1,8 +1,10 @@
-module.exports = (req, res) => {
-  res.status(200).json({
+// Health check endpoint
+export default function handler(req, res) {
+  res.status(200).json({ 
     status: 'ok',
-    message: 'Health check passed',
-    timestamp: new Date().toISOString(),
+    service: 'Marden SEO Audit API',
+    version: '1.0.0',
     environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString()
   });
-};
+}
