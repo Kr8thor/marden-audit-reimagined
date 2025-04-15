@@ -61,6 +61,11 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				neon: {
+					blue: '#0ea5e9',
+					purple: '#8b5cf6', 
+					teal: '#14b8a6'
 				}
 			},
 			borderRadius: {
@@ -84,11 +89,66 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'pulse-glow': {
+					'0%, 100%': { 
+						opacity: '1',
+						filter: 'brightness(1)'
+					},
+					'50%': { 
+						opacity: '0.8',
+						filter: 'brightness(1.2)'
+					}
+				},
+				'float': {
+					'0%, 100%': { transform: 'translateY(0px)' },
+					'50%': { transform: 'translateY(-10px)' }
+				},
+				'scan-line': {
+					'0%': { transform: 'translateY(0%)' },
+					'100%': { transform: 'translateY(100%)' }
+				},
+				'loading-bar': {
+					'0%': { width: '0%' },
+					'100%': { width: '100%' }
+				},
+				'spin-slow': {
+					'100%': { transform: 'rotate(360deg)' }
+				},
+				'ripple': {
+					'0%': { transform: 'scale(0)', opacity: '1' },
+					'100%': { transform: 'scale(4)', opacity: '0' }
+				},
+				'fade-in': {
+					'0%': { opacity: '0', transform: 'translateY(10px)' },
+					'100%': { opacity: '1', transform: 'translateY(0)' }
+				},
+				'fade-in-left': {
+					'0%': { opacity: '0', transform: 'translateX(-20px)' },
+					'100%': { opacity: '1', transform: 'translateX(0)' }
+				},
+				'radar-scan': {
+					'0%': { transform: 'rotate(0deg)', opacity: '0.6' },
+					'50%': { opacity: '0.2' },
+					'100%': { transform: 'rotate(360deg)', opacity: '0.6' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'pulse-glow': 'pulse-glow 3s ease-in-out infinite',
+				'float': 'float 6s ease-in-out infinite',
+				'scan-line': 'scan-line 2s linear infinite',
+				'loading-bar': 'loading-bar 3s cubic-bezier(0.4, 0, 0.2, 1)',
+				'spin-slow': 'spin-slow 8s linear infinite',
+				'ripple': 'ripple 1s linear',
+				'fade-in': 'fade-in 0.5s ease-out',
+				'fade-in-left': 'fade-in-left 0.5s ease-out',
+				'radar-scan': 'radar-scan 4s linear infinite'
+			},
+			fontFamily: {
+				'inter': ['Inter', 'sans-serif'],
+				'manrope': ['Manrope', 'sans-serif']
 			}
 		}
 	},
