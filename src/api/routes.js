@@ -14,6 +14,7 @@ router.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     version: process.env.npm_package_version || '1.0.0',
     environment: config.server.env,
+    message: 'Marden SEO Audit API is running',
   });
 });
 
