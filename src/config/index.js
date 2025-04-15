@@ -17,12 +17,10 @@ const config = {
     env: process.env.NODE_ENV || 'development',
   },
   
-  // Vercel KV settings
-  kv: {
-    url: process.env.KV_URL,
-    restApiUrl: process.env.KV_REST_API_URL,
-    restApiToken: process.env.KV_REST_API_TOKEN,
-    restApiReadOnlyToken: process.env.KV_REST_API_READ_ONLY_TOKEN,
+  // Upstash Redis settings
+  redis: {
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
   },
   
   // Crawling settings

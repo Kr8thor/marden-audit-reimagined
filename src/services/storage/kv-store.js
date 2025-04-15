@@ -1,38 +1,38 @@
-import { createClient } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
 import config from '../../config/index.js';
 import logger from '../../utils/logger.js';
 
-// Initialize KV client
-let kvClient;
+// Initialize Redis client
+let redisClient;
 
 try {
-  kvClient = createClient({
-    url: config.kv.url,
-    token: config.kv.restApiToken,
+  redisClient = new Redis({
+    url: config.redis.url,
+    token: config.redis.token,
   });
   
-  logger.info('KV store client initialized');
+  logger.info('Redis store client initialized');
 } catch (error) {
-  logger.error('Failed to initialize KV store client:', error);
+  logger.error('Failed to initialize Redis store client:', error);
   
-  // Create a mock client for development if KV is not available
+  // Create a mock client for development if Redis is not available
   if (config.server.env === 'development') {
-    logger.warn('Using in-memory mock KV store for development');
+    logger.warn('Using in-memory mock Redis store for development');
     
     const mockStore = new Map();
     
-    kvClient = {
+    redisClient = {
       get: async (key) => {
-        logger.debug(`[Mock KV] GET ${key}`);
+        logger.debug(`[Mock Redis] GET ${key}`);
         return mockStore.get(key);
       },
       set: async (key, value, options) => {
-        logger.debug(`[Mock KV] SET ${key}`, { options });
+        logger.debug(`[Mock Redis] SET ${key}`, { options });
         mockStore.set(key, value);
         return 'OK';
       },
       del: async (...keys) => {
-        logger.debug(`[Mock KV] DEL ${keys.join(', ')}`);
+        logger.debug(`[Mock Redis] DEL ${keys.join(', ')}`);
         let count = 0;
         for (const key of keys) {
           if (mockStore.delete(key)) count++;
@@ -40,21 +40,21 @@ try {
         return count;
       },
       lpush: async (key, ...elements) => {
-        logger.debug(`[Mock KV] LPUSH ${key}`, elements);
+        logger.debug(`[Mock Redis] LPUSH ${key}`, elements);
         if (!mockStore.has(key)) mockStore.set(key, []);
         const list = mockStore.get(key);
         list.unshift(...elements);
         return list.length;
       },
       rpush: async (key, ...elements) => {
-        logger.debug(`[Mock KV] RPUSH ${key}`, elements);
+        logger.debug(`[Mock Redis] RPUSH ${key}`, elements);
         if (!mockStore.has(key)) mockStore.set(key, []);
         const list = mockStore.get(key);
         list.push(...elements);
         return list.length;
       },
       lpop: async (key, count = 1) => {
-        logger.debug(`[Mock KV] LPOP ${key} ${count}`);
+        logger.debug(`[Mock Redis] LPOP ${key} ${count}`);
         if (!mockStore.has(key)) return null;
         const list = mockStore.get(key);
         if (list.length === 0) return null;
@@ -62,7 +62,7 @@ try {
         return list.splice(0, Math.min(count, list.length));
       },
       rpop: async (key, count = 1) => {
-        logger.debug(`[Mock KV] RPOP ${key} ${count}`);
+        logger.debug(`[Mock Redis] RPOP ${key} ${count}`);
         if (!mockStore.has(key)) return null;
         const list = mockStore.get(key);
         if (list.length === 0) return null;
@@ -70,7 +70,7 @@ try {
         return list.splice(-Math.min(count, list.length));
       },
       lrange: async (key, start, end) => {
-        logger.debug(`[Mock KV] LRANGE ${key} ${start} ${end}`);
+        logger.debug(`[Mock Redis] LRANGE ${key} ${start} ${end}`);
         if (!mockStore.has(key)) return [];
         const list = mockStore.get(key);
         // Handle negative indices
@@ -79,19 +79,19 @@ try {
         return list.slice(actualStart, actualEnd + 1);
       },
       llen: async (key) => {
-        logger.debug(`[Mock KV] LLEN ${key}`);
+        logger.debug(`[Mock Redis] LLEN ${key}`);
         if (!mockStore.has(key)) return 0;
         const list = mockStore.get(key);
         return list.length;
       },
       expire: async (key, seconds) => {
-        logger.debug(`[Mock KV] EXPIRE ${key} ${seconds}`);
+        logger.debug(`[Mock Redis] EXPIRE ${key} ${seconds}`);
         if (!mockStore.has(key)) return 0;
         // We'll just pretend to set expiration in mock
         return 1;
       },
       exists: async (...keys) => {
-        logger.debug(`[Mock KV] EXISTS ${keys.join(', ')}`);
+        logger.debug(`[Mock Redis] EXISTS ${keys.join(', ')}`);
         let count = 0;
         for (const key of keys) {
           if (mockStore.has(key)) count++;
@@ -99,7 +99,7 @@ try {
         return count;
       },
       scan: async (cursor, options) => {
-        logger.debug(`[Mock KV] SCAN ${cursor}`, options);
+        logger.debug(`[Mock Redis] SCAN ${cursor}`, options);
         const pattern = options?.match || '*';
         const keys = Array.from(mockStore.keys());
         const matchedKeys = keys.filter(key => {
@@ -129,7 +129,7 @@ const kvStore = {
    */
   async get(key) {
     try {
-      const value = await kvClient.get(key);
+      const value = await redisClient.get(key);
       return value;
     } catch (error) {
       logger.error(`Error getting key ${key}:`, error);
@@ -146,7 +146,7 @@ const kvStore = {
    */
   async set(key, value, options = {}) {
     try {
-      const result = await kvClient.set(key, value, options);
+      const result = await redisClient.set(key, value, options);
       return result;
     } catch (error) {
       logger.error(`Error setting key ${key}:`, error);
@@ -161,7 +161,7 @@ const kvStore = {
    */
   async delete(...keys) {
     try {
-      const count = await kvClient.del(...keys);
+      const count = await redisClient.del(...keys);
       return count;
     } catch (error) {
       logger.error(`Error deleting keys ${keys.join(', ')}:`, error);
@@ -177,7 +177,7 @@ const kvStore = {
    */
   async pushToListStart(key, ...elements) {
     try {
-      const length = await kvClient.lpush(key, ...elements);
+      const length = await redisClient.lpush(key, ...elements);
       return length;
     } catch (error) {
       logger.error(`Error pushing to list start ${key}:`, error);
@@ -193,7 +193,7 @@ const kvStore = {
    */
   async pushToListEnd(key, ...elements) {
     try {
-      const length = await kvClient.rpush(key, ...elements);
+      const length = await redisClient.rpush(key, ...elements);
       return length;
     } catch (error) {
       logger.error(`Error pushing to list end ${key}:`, error);
@@ -209,7 +209,7 @@ const kvStore = {
    */
   async popFromListStart(key, count = 1) {
     try {
-      const elements = await kvClient.lpop(key, count);
+      const elements = await redisClient.lpop(key, count);
       return elements;
     } catch (error) {
       logger.error(`Error popping from list start ${key}:`, error);
@@ -225,7 +225,7 @@ const kvStore = {
    */
   async popFromListEnd(key, count = 1) {
     try {
-      const elements = await kvClient.rpop(key, count);
+      const elements = await redisClient.rpop(key, count);
       return elements;
     } catch (error) {
       logger.error(`Error popping from list end ${key}:`, error);
@@ -242,7 +242,7 @@ const kvStore = {
    */
   async getListRange(key, start, end) {
     try {
-      const elements = await kvClient.lrange(key, start, end);
+      const elements = await redisClient.lrange(key, start, end);
       return elements;
     } catch (error) {
       logger.error(`Error getting list range ${key}:`, error);
@@ -257,7 +257,7 @@ const kvStore = {
    */
   async getListLength(key) {
     try {
-      const length = await kvClient.llen(key);
+      const length = await redisClient.llen(key);
       return length;
     } catch (error) {
       logger.error(`Error getting list length ${key}:`, error);
@@ -273,7 +273,7 @@ const kvStore = {
    */
   async setExpiration(key, seconds) {
     try {
-      const result = await kvClient.expire(key, seconds);
+      const result = await redisClient.expire(key, seconds);
       return result;
     } catch (error) {
       logger.error(`Error setting expiration for key ${key}:`, error);
@@ -288,7 +288,7 @@ const kvStore = {
    */
   async exists(...keys) {
     try {
-      const count = await kvClient.exists(...keys);
+      const count = await redisClient.exists(...keys);
       return count;
     } catch (error) {
       logger.error(`Error checking existence of keys ${keys.join(', ')}:`, error);
@@ -307,7 +307,7 @@ const kvStore = {
       let cursor = 0;
       
       do {
-        const scan = await kvClient.scan(cursor, { match: pattern });
+        const scan = await redisClient.scan(cursor, { match: pattern });
         cursor = scan.cursor;
         results.push(...scan.keys);
       } while (cursor !== 0);
