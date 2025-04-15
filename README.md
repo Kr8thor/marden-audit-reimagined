@@ -1,22 +1,17 @@
-# Welcome to your Lovable project
+# Marden Audit Frontend
 
 ## Project info
 
-**URL**: https://lovable.dev/projects/ed5ec131-b699-4348-864f-e7f8a7f73f0b
+**Repository**: https://github.com/Kr8thor/marden-audit-reimagined.git  
+**Production URL**: https://audit.mardenseo.com
 
 ## How can I edit this code?
 
 There are several ways of editing your application.
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/ed5ec131-b699-4348-864f-e7f8a7f73f0b) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
 **Use your preferred IDE**
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+If you want to work locally using your own IDE, you can clone this repo and push changes.
 
 The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 
@@ -24,13 +19,13 @@ Follow these steps:
 
 ```sh
 # Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+git clone https://github.com/Kr8thor/marden-audit-reimagined.git
 
 # Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+cd marden-audit-reimagined
 
 # Step 3: Install the necessary dependencies.
-npm i
+npm ci
 
 # Step 4: Start the development server with auto-reloading and an instant preview.
 npm run dev
@@ -62,12 +57,30 @@ This project is built with:
 
 ## How can I deploy this project?
 
-Simply open [Lovable](https://lovable.dev/projects/ed5ec131-b699-4348-864f-e7f8a7f73f0b) and click on Share -> Publish.
+See the [DEPLOYMENT.md](./DEPLOYMENT.md) file for detailed deployment instructions to the production environment (audit.mardenseo.com).
 
-## Can I connect a custom domain to my Lovable project?
+## Development
 
-Yes, you can!
+```sh
+# Install dependencies
+npm ci
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+# Start development server
+npm run dev
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+# Build for production
+npm run build
+
+# Preview production build locally
+npm run preview
+```
+
+## Deployment
+
+This project can be deployed in multiple ways:
+
+1. Traditional web server (Nginx/Apache) - See [DEPLOYMENT.md](./DEPLOYMENT.md)
+2. Docker deployment - Using the included Dockerfile and docker-compose.yml
+3. CI/CD automation - Set up GitHub Actions or similar for automated deployments
+
+For production deployment to audit.mardenseo.com, please follow the instructions in [DEPLOYMENT.md](./DEPLOYMENT.md).
