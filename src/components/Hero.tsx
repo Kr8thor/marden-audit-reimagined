@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -57,7 +56,15 @@ const Hero = () => {
                 size="lg"
                 glowColor="purple"
                 className="w-full sm:w-auto"
-                onClick={handleScan}
+                onClick={() => {
+                  // Scroll to the URL input
+                  document.getElementById('audit-input')?.scrollIntoView({ behavior: 'smooth' });
+                  // Focus on the input field
+                  setTimeout(() => {
+                    const inputElement = document.querySelector('input[placeholder="Enter your website URL"]') as HTMLInputElement;
+                    if (inputElement) inputElement.focus();
+                  }, 500);
+                }}
               >
                 Run Your Free Audit
                 <ChevronRight className="ml-2 h-5 w-5" />
@@ -90,7 +97,7 @@ const Hero = () => {
           </div>
           
           {/* URL Scan Demo */}
-          <div className="max-w-4xl mx-auto bg-card/30 backdrop-blur-md border border-white/10 rounded-xl p-6 animate-fade-in neon-glow-purple" style={{ animationDelay: '0.3s' }}>
+          <div id="audit-input" className="max-w-4xl mx-auto bg-card/30 backdrop-blur-md border border-white/10 rounded-xl p-6 animate-fade-in neon-glow-purple" style={{ animationDelay: '0.3s' }}>
             <div className="relative">
               {isScanning && <div className="scan-line"></div>}
               
