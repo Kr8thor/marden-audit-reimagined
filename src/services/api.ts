@@ -1,10 +1,8 @@
 // API service for Marden SEO Audit
 import { useState } from 'react';
 
-// Define the base URL for our API - direct approach for reliability
-const API_URL = 'https://marden-audit-backend-se9t.vercel.app';
-// Using direct Vercel URL for now to ensure connection works
-// Later can be changed back to domain-based URL once everything is working
+// Define the base URL for our API
+const API_URL = '/api'; // Use the rewrite rule configured in vercel.json
 
 // Type definitions
 export interface ApiResponse {
@@ -48,8 +46,8 @@ export interface AuditResult {
  */
 export const checkApiStatus = async (): Promise<ApiResponse> => {
   try {
-    const response = await fetch(`${API_URL}/api`);
-    console.log('Checking API status at:', `${API_URL}/api`);
+    console.log('Checking API status at:', `${API_URL}`);
+    const response = await fetch(`${API_URL}`);
     if (!response.ok) {
       throw new Error(`API returned status ${response.status}`);
     }
@@ -68,9 +66,9 @@ export const checkApiStatus = async (): Promise<ApiResponse> => {
 export const runSeoAudit = async (url: string): Promise<AuditResult> => {
   try {
     console.log('Running SEO audit for URL:', url);
-    console.log('API endpoint:', `${API_URL}/api`); // Use the root endpoint since it handles both GET and POST
+    console.log('API endpoint:', `${API_URL}`);
     
-    const response = await fetch(`${API_URL}/api`, {
+    const response = await fetch(`${API_URL}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

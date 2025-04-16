@@ -10,11 +10,13 @@
       }
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "https://marden-audit-backend-se9t.vercel.app/api/$1"
-    },
+      "source": "/api/:path*",
+      "destination": "https://marden-audit-backend-se9t.vercel.app/api/:path*"
+    }
+  ],
+  "routes": [
     {
       "src": "/(.*)",
       "dest": "/index.html"
