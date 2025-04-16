@@ -1,39 +1,55 @@
 import { useState, useEffect } from 'react';
-import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { ChevronRight, Play, Search } from 'lucide-react';
 import { Dialog, DialogContent, DialogTrigger } from './ui/dialog';
 import AnimatedButton from './AnimatedButton';
 import CircularProgress from './CircularProgress';
+import useAudit from '../hooks/use-audit';
+import AuditResults from './audit/AuditResults';
+import AuditError from './audit/AuditError';
+
+// Regex to validate URLs
+const URL_REGEX = /^(https?:\/\/)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/;
 
 const Hero = () => {
   const [url, setUrl] = useState('');
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanProgress, setScanProgress] = useState(0);
-  const [showResults, setShowResults] = useState(false);
+  const [urlError, setUrlError] = useState<string | null>(null);
   
-  const handleScan = () => {
-    if (!url) return;
+  // Use our custom hook
+  const {
+    isLoading: isScanning,
+    progress: scanProgress,
+    status,
+    results,
+    error,
+    startAudit,
+    resetAudit
+  } = useAudit();
+  
+  // Computed state
+  const showResults = status === 'completed' && results !== null;
+  const showError = status === 'failed' && error !== null;
+  
+  // Handle URL validation
+  const validateUrl = (input: string) => {
+    setUrl(input);
     
-    setIsScanning(true);
-    setScanProgress(0);
-    setShowResults(false);
+    if (input && !URL_REGEX.test(input)) {
+      setUrlError('Please enter a valid URL');
+    } else {
+      setUrlError(null);
+    }
+  };
+  
+  // Handle scan button click
+  const handleScan = async () => {
+    if (!url || urlError) return;
     
-    // Simulate scanning progress
-    const interval = setInterval(() => {
-      setScanProgress(prev => {
-        const newProgress = prev + Math.random() * 15;
-        if (newProgress >= 100) {
-          clearInterval(interval);
-          setTimeout(() => {
-            setIsScanning(false);
-            setShowResults(true);
-          }, 500);
-          return 100;
-        }
-        return newProgress;
-      });
-    }, 300);
+    // Add https if missing
+    const formattedUrl = url.startsWith('http') ? url : `https://${url}`;
+    
+    // Start audit
+    await startAudit(formattedUrl, 'page'); // Use page audit for faster results
   };
   
   return (
@@ -107,18 +123,21 @@ const Hero = () => {
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Enter your website URL"
-                      className="pl-10 bg-background/50 border-white/10 focus:border-primary h-12"
+                      className={`pl-10 bg-background/50 border-white/10 focus:border-primary h-12 ${urlError ? 'border-red-400' : ''}`}
                       value={url}
-                      onChange={(e) => setUrl(e.target.value)}
+                      onChange={(e) => validateUrl(e.target.value)}
                       disabled={isScanning}
                     />
+                    {urlError && (
+                      <div className="text-red-400 text-xs mt-1 ml-1">{urlError}</div>
+                    )}
                   </div>
                   <AnimatedButton
                     variant="primary"
                     glowColor="blue" 
                     className="h-12 sm:w-32"
                     onClick={handleScan}
-                    disabled={isScanning || !url}
+                    disabled={isScanning || !url || !!urlError}
                   >
                     {isScanning ? 'Scanning...' : 'Analyze'}
                   </AnimatedButton>
@@ -150,102 +169,18 @@ const Hero = () => {
                   )}
                   
                   {showResults && (
-                    <div className="animate-fade-in">
-                      <div className="flex items-center justify-between mb-6">
-                        <div>
-                          <h3 className="text-lg font-semibold">{url || 'example.com'}</h3>
-                          <p className="text-sm text-muted-foreground">SEO Audit Results</p>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <div className="w-3 h-3 rounded-full bg-neon-purple"></div>
-                          <div className="text-sm font-semibold text-white/90">Live Report</div>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                        <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-                          <div className="text-sm text-muted-foreground mb-1">Overall Score</div>
-                          <div className="flex items-center">
-                            <div className="text-2xl font-bold gradient-text">72</div>
-                            <div className="text-xs ml-1 text-white/60">/100</div>
-                          </div>
-                        </div>
-                        <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-                          <div className="text-sm text-muted-foreground mb-1">Issues Found</div>
-                          <div className="text-2xl font-bold text-red-400">14</div>
-                        </div>
-                        <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-                          <div className="text-sm text-muted-foreground mb-1">Opportunities</div>
-                          <div className="text-2xl font-bold text-green-400">9</div>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-                          <div className="flex justify-between mb-3">
-                            <div className="text-sm font-medium">Performance Metrics</div>
-                            <div className="text-xs text-muted-foreground">Core Web Vitals</div>
-                          </div>
-                          <div className="space-y-3">
-                            <div>
-                              <div className="flex justify-between text-xs mb-1">
-                                <span>LCP (Largest Contentful Paint)</span>
-                                <span className="text-yellow-400">2.5s</span>
-                              </div>
-                              <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
-                                <div className="bg-yellow-400 h-full rounded-full" style={{ width: '75%' }}></div>
-                              </div>
-                            </div>
-                            <div>
-                              <div className="flex justify-between text-xs mb-1">
-                                <span>CLS (Cumulative Layout Shift)</span>
-                                <span className="text-green-400">0.02</span>
-                              </div>
-                              <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
-                                <div className="bg-green-400 h-full rounded-full" style={{ width: '95%' }}></div>
-                              </div>
-                            </div>
-                            <div>
-                              <div className="flex justify-between text-xs mb-1">
-                                <span>FID (First Input Delay)</span>
-                                <span className="text-green-400">12ms</span>
-                              </div>
-                              <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
-                                <div className="bg-green-400 h-full rounded-full" style={{ width: '90%' }}></div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-                          <div className="flex justify-between mb-3">
-                            <div className="text-sm font-medium">Top Issues</div>
-                            <div className="text-xs text-primary">View All</div>
-                          </div>
-                          <div className="space-y-2">
-                            <div className="flex items-center text-xs p-2 bg-white/5 rounded">
-                              <div className="w-2 h-2 rounded-full bg-red-400 mr-2"></div>
-                              <div>Missing meta descriptions (4 pages)</div>
-                            </div>
-                            <div className="flex items-center text-xs p-2 bg-white/5 rounded">
-                              <div className="w-2 h-2 rounded-full bg-red-400 mr-2"></div>
-                              <div>Low word count on key pages</div>
-                            </div>
-                            <div className="flex items-center text-xs p-2 bg-white/5 rounded">
-                              <div className="w-2 h-2 rounded-full bg-yellow-400 mr-2"></div>
-                              <div>Images missing alt text</div>
-                            </div>
-                            <div className="flex items-center text-xs p-2 bg-white/5 rounded">
-                              <div className="w-2 h-2 rounded-full bg-yellow-400 mr-2"></div>
-                              <div>Mobile responsiveness issues</div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    <AuditResults 
+                      pageAnalysis={results?.pageAnalysis}
+                      siteAnalysis={results?.siteAnalysis}
+                      url={url}
+                    />
                   )}
                   
-                  {!isScanning && !showResults && (
+                  {showError && (
+                    <AuditError message={error} onReset={resetAudit} />
+                  )}
+                  
+                  {!isScanning && !showResults && !showError && (
                     <div className="flex flex-col items-center justify-center py-12 text-center">
                       <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
                         <Search className="h-7 w-7 text-white/70" />
