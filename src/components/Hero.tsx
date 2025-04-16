@@ -1,39 +1,88 @@
 import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { ChevronRight, Play, Search } from 'lucide-react';
+import { ChevronRight, Play, Search, AlertTriangle } from 'lucide-react';
 import { Dialog, DialogContent, DialogTrigger } from './ui/dialog';
 import AnimatedButton from './AnimatedButton';
 import CircularProgress from './CircularProgress';
+import { runSeoAudit, useApiStatus, AuditResult } from '@/services/api';
+import { useToast } from './ui/use-toast';
 
 const Hero = () => {
   const [url, setUrl] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
   const [showResults, setShowResults] = useState(false);
+  const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
+  const { isApiReady, isLoading, error, checkStatus } = useApiStatus();
+  const { toast } = useToast();
   
-  const handleScan = () => {
+  // Check API status on component mount
+  useEffect(() => {
+    checkStatus();
+  }, []);
+  
+  const handleScan = async () => {
     if (!url) return;
     
-    setIsScanning(true);
-    setScanProgress(0);
-    setShowResults(false);
-    
-    // Simulate scanning progress
-    const interval = setInterval(() => {
-      setScanProgress(prev => {
-        const newProgress = prev + Math.random() * 15;
-        if (newProgress >= 100) {
-          clearInterval(interval);
-          setTimeout(() => {
-            setIsScanning(false);
-            setShowResults(true);
-          }, 500);
-          return 100;
-        }
-        return newProgress;
+    // Basic URL validation
+    try {
+      // Add https:// if missing
+      let urlToAudit = url;
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        urlToAudit = `https://${url}`;
+      }
+      
+      // Validate URL format
+      new URL(urlToAudit);
+      
+      setIsScanning(true);
+      setScanProgress(0);
+      setShowResults(false);
+      
+      // Progress simulation
+      const interval = setInterval(() => {
+        setScanProgress(prev => {
+          // Cap at 95% until we get actual results
+          const newProgress = prev + Math.random() * 15;
+          return newProgress > 95 ? 95 : newProgress;
+        });
+      }, 300);
+      
+      try {
+        // Call the API service
+        const result = await runSeoAudit(urlToAudit);
+        setAuditResult(result);
+        
+        // Complete the progress and show results
+        clearInterval(interval);
+        setScanProgress(100);
+        
+        setTimeout(() => {
+          setIsScanning(false);
+          setShowResults(true);
+        }, 500);
+        
+      } catch (apiError) {
+        clearInterval(interval);
+        setIsScanning(false);
+        
+        toast({
+          title: "Audit Failed",
+          description: "There was an error while analyzing this website. Please try again.",
+          variant: "destructive",
+        });
+        
+        console.error("API Error:", apiError);
+      }
+      
+    } catch (urlError) {
+      toast({
+        title: "Invalid URL",
+        description: "Please enter a valid website URL",
+        variant: "destructive",
       });
-    }, 300);
+    }
   };
   
   return (
@@ -101,6 +150,17 @@ const Hero = () => {
             <div className="relative">
               {isScanning && <div className="scan-line"></div>}
               
+              {/* API Status Indicator */}
+              {error && (
+                <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-red-400" />
+                  <div className="text-sm">
+                    <span className="font-medium">API Connection Error: </span> 
+                    <span className="text-white/70">Unable to connect to the audit backend.</span>
+                  </div>
+                </div>
+              )}
+              
               <div className="mb-8">
                 <div className="flex flex-col sm:flex-row items-stretch gap-3">
                   <div className="relative flex-grow">
@@ -110,7 +170,7 @@ const Hero = () => {
                       className="pl-10 bg-background/50 border-white/10 focus:border-primary h-12"
                       value={url}
                       onChange={(e) => setUrl(e.target.value)}
-                      disabled={isScanning}
+                      disabled={isScanning || (isLoading || (!isApiReady && !error))}
                     />
                   </div>
                   <AnimatedButton
@@ -118,7 +178,7 @@ const Hero = () => {
                     glowColor="blue" 
                     className="h-12 sm:w-32"
                     onClick={handleScan}
-                    disabled={isScanning || !url}
+                    disabled={isScanning || !url || (isLoading || (!isApiReady && !error))}
                   >
                     {isScanning ? 'Scanning...' : 'Analyze'}
                   </AnimatedButton>
@@ -149,11 +209,11 @@ const Hero = () => {
                     </div>
                   )}
                   
-                  {showResults && (
+                  {showResults && auditResult && (
                     <div className="animate-fade-in">
                       <div className="flex items-center justify-between mb-6">
                         <div>
-                          <h3 className="text-lg font-semibold">{url || 'example.com'}</h3>
+                          <h3 className="text-lg font-semibold">{auditResult.url}</h3>
                           <p className="text-sm text-muted-foreground">SEO Audit Results</p>
                         </div>
                         <div className="flex items-center space-x-1">
@@ -166,17 +226,17 @@ const Hero = () => {
                         <div className="bg-white/5 rounded-lg p-4 border border-white/10">
                           <div className="text-sm text-muted-foreground mb-1">Overall Score</div>
                           <div className="flex items-center">
-                            <div className="text-2xl font-bold gradient-text">72</div>
+                            <div className="text-2xl font-bold gradient-text">{auditResult.score}</div>
                             <div className="text-xs ml-1 text-white/60">/100</div>
                           </div>
                         </div>
                         <div className="bg-white/5 rounded-lg p-4 border border-white/10">
                           <div className="text-sm text-muted-foreground mb-1">Issues Found</div>
-                          <div className="text-2xl font-bold text-red-400">14</div>
+                          <div className="text-2xl font-bold text-red-400">{auditResult.issuesFound}</div>
                         </div>
                         <div className="bg-white/5 rounded-lg p-4 border border-white/10">
                           <div className="text-sm text-muted-foreground mb-1">Opportunities</div>
-                          <div className="text-2xl font-bold text-green-400">9</div>
+                          <div className="text-2xl font-bold text-green-400">{auditResult.opportunities}</div>
                         </div>
                       </div>
                       
@@ -190,28 +250,46 @@ const Hero = () => {
                             <div>
                               <div className="flex justify-between text-xs mb-1">
                                 <span>LCP (Largest Contentful Paint)</span>
-                                <span className="text-yellow-400">2.5s</span>
+                                <span className={auditResult.performanceMetrics.lcp.score >= 90 ? "text-green-400" : 
+                                               auditResult.performanceMetrics.lcp.score >= 70 ? "text-yellow-400" : "text-red-400"}>
+                                  {auditResult.performanceMetrics.lcp.value}{auditResult.performanceMetrics.lcp.unit}
+                                </span>
                               </div>
                               <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
-                                <div className="bg-yellow-400 h-full rounded-full" style={{ width: '75%' }}></div>
+                                <div className={`h-full rounded-full ${
+                                  auditResult.performanceMetrics.lcp.score >= 90 ? "bg-green-400" : 
+                                  auditResult.performanceMetrics.lcp.score >= 70 ? "bg-yellow-400" : "bg-red-400"
+                                }`} style={{ width: `${auditResult.performanceMetrics.lcp.score}%` }}></div>
                               </div>
                             </div>
                             <div>
                               <div className="flex justify-between text-xs mb-1">
                                 <span>CLS (Cumulative Layout Shift)</span>
-                                <span className="text-green-400">0.02</span>
+                                <span className={auditResult.performanceMetrics.cls.score >= 90 ? "text-green-400" : 
+                                               auditResult.performanceMetrics.cls.score >= 70 ? "text-yellow-400" : "text-red-400"}>
+                                  {auditResult.performanceMetrics.cls.value}
+                                </span>
                               </div>
                               <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
-                                <div className="bg-green-400 h-full rounded-full" style={{ width: '95%' }}></div>
+                                <div className={`h-full rounded-full ${
+                                  auditResult.performanceMetrics.cls.score >= 90 ? "bg-green-400" : 
+                                  auditResult.performanceMetrics.cls.score >= 70 ? "bg-yellow-400" : "bg-red-400"
+                                }`} style={{ width: `${auditResult.performanceMetrics.cls.score}%` }}></div>
                               </div>
                             </div>
                             <div>
                               <div className="flex justify-between text-xs mb-1">
                                 <span>FID (First Input Delay)</span>
-                                <span className="text-green-400">12ms</span>
+                                <span className={auditResult.performanceMetrics.fid.score >= 90 ? "text-green-400" : 
+                                               auditResult.performanceMetrics.fid.score >= 70 ? "text-yellow-400" : "text-red-400"}>
+                                  {auditResult.performanceMetrics.fid.value}{auditResult.performanceMetrics.fid.unit}
+                                </span>
                               </div>
                               <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
-                                <div className="bg-green-400 h-full rounded-full" style={{ width: '90%' }}></div>
+                                <div className={`h-full rounded-full ${
+                                  auditResult.performanceMetrics.fid.score >= 90 ? "bg-green-400" : 
+                                  auditResult.performanceMetrics.fid.score >= 70 ? "bg-yellow-400" : "bg-red-400"
+                                }`} style={{ width: `${auditResult.performanceMetrics.fid.score}%` }}></div>
                               </div>
                             </div>
                           </div>
@@ -223,22 +301,15 @@ const Hero = () => {
                             <div className="text-xs text-primary">View All</div>
                           </div>
                           <div className="space-y-2">
-                            <div className="flex items-center text-xs p-2 bg-white/5 rounded">
-                              <div className="w-2 h-2 rounded-full bg-red-400 mr-2"></div>
-                              <div>Missing meta descriptions (4 pages)</div>
-                            </div>
-                            <div className="flex items-center text-xs p-2 bg-white/5 rounded">
-                              <div className="w-2 h-2 rounded-full bg-red-400 mr-2"></div>
-                              <div>Low word count on key pages</div>
-                            </div>
-                            <div className="flex items-center text-xs p-2 bg-white/5 rounded">
-                              <div className="w-2 h-2 rounded-full bg-yellow-400 mr-2"></div>
-                              <div>Images missing alt text</div>
-                            </div>
-                            <div className="flex items-center text-xs p-2 bg-white/5 rounded">
-                              <div className="w-2 h-2 rounded-full bg-yellow-400 mr-2"></div>
-                              <div>Mobile responsiveness issues</div>
-                            </div>
+                            {auditResult.topIssues.map((issue, index) => (
+                              <div key={index} className="flex items-center text-xs p-2 bg-white/5 rounded">
+                                <div className={`w-2 h-2 rounded-full mr-2 ${
+                                  issue.severity === 'critical' ? 'bg-red-400' : 
+                                  issue.severity === 'warning' ? 'bg-yellow-400' : 'bg-blue-400'
+                                }`}></div>
+                                <div>{issue.description}</div>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       </div>

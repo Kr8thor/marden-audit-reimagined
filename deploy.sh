@@ -2,8 +2,8 @@
 
 # Configuration
 DOMAIN="audit.mardenseo.com"
-USER="yourusername"
-REMOTE_SERVER="yourdomain.com"
+USER="mardenseo"
+REMOTE_SERVER="mardenseo.com"
 REMOTE_PATH="/var/www/audit.mardenseo.com"
 
 # Build the project
