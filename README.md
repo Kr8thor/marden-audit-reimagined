@@ -1,86 +1,96 @@
-# Marden Audit Frontend
+# MardenSEO Audit Frontend
 
-## Project info
+This is the frontend application for MardenSEO Audit tool, a comprehensive SEO analysis tool designed to provide actionable insights for website optimization.
 
-**Repository**: https://github.com/Kr8thor/marden-audit-reimagined.git  
-**Production URL**: https://audit.mardenseo.com
+## Features
 
-## How can I edit this code?
+- Modern UI built with React, TypeScript, and TailwindCSS
+- Responsive design for all device sizes
+- Real-time SEO auditing
+- Interactive visualizations
+- Actionable SEO recommendations
 
-There are several ways of editing your application.
+## Tech Stack
 
-**Use your preferred IDE**
+- React + TypeScript
+- Vite for fast development and optimized builds
+- TailwindCSS for styling
+- Shadcn UI components
+- Lucide React for icons
+- Recharts for data visualization
 
-If you want to work locally using your own IDE, you can clone this repo and push changes.
+## Getting Started
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Prerequisites
 
-Follow these steps:
+- Node.js 16+
+- npm or yarn
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone https://github.com/Kr8thor/marden-audit-reimagined.git
+### Installation
 
-# Step 2: Navigate to the project directory.
-cd marden-audit-reimagined
+1. Clone the repository:
+   ```
+   git clone https://github.com/Kr8thor/marden-audit-reimagined.git
+   cd marden-audit-reimagined
+   ```
 
-# Step 3: Install the necessary dependencies.
-npm ci
+2. Install dependencies:
+   ```
+   npm install
+   ```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+3. Configure environment variables:
+   - Create a `.env` file based on `.env.example`
+   - Set `VITE_API_URL` to point to your backend API
 
-**Edit a file directly in GitHub**
+4. Start the development server:
+   ```
+   npm run dev
+   ```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+5. Build for production:
+   ```
+   npm run build
+   ```
 
-**Use GitHub Codespaces**
+## Deployment to Vercel
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Setup
 
-## What technologies are used for this project?
+1. Push your code to GitHub
 
-This project is built with:
+2. Create a new project in Vercel
+   - Connect your GitHub repository
+   - Set the framework preset to Vite
+   - Configure the following settings:
+     - Build Command: `npm run build`
+     - Output Directory: `dist`
+     - Install Command: `npm install`
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+3. Environment Variables
+   - Add `VITE_API_URL` environment variable pointing to your backend API
+   - For a combined deployment, you can use `/api` as the value
 
-## How can I deploy this project?
+4. Deploy
 
-See the [DEPLOYMENT.md](./DEPLOYMENT.md) file for detailed deployment instructions to the production environment (audit.mardenseo.com).
+### Production Optimizations
 
-## Development
+- Enable Vercel Edge Network for global CDN
+- Configure custom domain (e.g., audit.mardenseo.com)
+- Set up Vercel Analytics for monitoring
 
-```sh
-# Install dependencies
-npm ci
+## Connecting with Backend
 
-# Start development server
-npm run dev
+This frontend is designed to work with the MardenSEO Audit Backend. When deploying both to Vercel:
 
-# Build for production
-npm run build
+1. Deploy both repositories to Vercel
+2. In the frontend project settings, add the backend as a Linked Project
+3. Configure the `VITE_API_URL` environment variable to point to `/api`
+4. Ensure proper CORS settings in the backend
 
-# Preview production build locally
-npm run preview
-```
+## Development Notes
 
-## Deployment
-
-This project can be deployed in multiple ways:
-
-1. Traditional web server (Nginx/Apache) - See [DEPLOYMENT.md](./DEPLOYMENT.md)
-2. Docker deployment - Using the included Dockerfile and docker-compose.yml
-3. CI/CD automation - Set up GitHub Actions or similar for automated deployments
-
-For production deployment to audit.mardenseo.com, please follow the instructions in [DEPLOYMENT.md](./DEPLOYMENT.md).
+- All API calls are made through the API client in `src/api/client.ts`
+- The main audit functionality is in the `useAudit` hook
+- Update API endpoints in the client if your backend routes differ
+"# Update timestamp: $(date)"  
