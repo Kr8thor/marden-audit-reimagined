@@ -68,9 +68,9 @@ export const checkApiStatus = async (): Promise<ApiResponse> => {
 export const runSeoAudit = async (url: string): Promise<AuditResult> => {
   try {
     console.log('Running SEO audit for URL:', url);
-    console.log('API endpoint:', `${API_URL}/api/audit`);
+    console.log('API endpoint:', `${API_URL}/api`); // Use the root endpoint since it handles both GET and POST
     
-    const response = await fetch(`${API_URL}/api/audit`, {
+    const response = await fetch(`${API_URL}/api`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
