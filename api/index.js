@@ -1,47 +1,43 @@
 // Combined index and audit endpoints for Vercel serverless function
-
 module.exports = async (req, res) => {
-  // CRITICAL FIX: Enable CORS with proper headers
+  // Enable CORS
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
   res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Origin, Cache-Control');
 
-  // Handle OPTIONS request (for CORS preflight)
+  // Handle OPTIONS request
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
   
-  // Log request details for debugging
+  // For debugging - log the request details
+  console.log('Request URL:', req.url);
   console.log('Request Method:', req.method);
-  console.log('Request Headers:', JSON.stringify(req.headers));
+  console.log('Request Headers:', req.headers);
   
   // POST requests are for audit
   if (req.method === 'POST') {
     try {
-      // CRITICAL FIX: Properly parse request body
-      let requestBody = {};
+      // Extract URL from request body with extra safety checks
+      let requestBody = req.body;
+      let url = null;
       
-      if (req.body) {
-        // If body is already parsed
-        if (typeof req.body === 'object') {
-          requestBody = req.body;
-        } 
-        // If body is a string
-        else if (typeof req.body === 'string') {
+      // Handle different body formats
+      if (requestBody) {
+        if (typeof requestBody === 'object') {
+          url = requestBody.url;
+        } else if (typeof requestBody === 'string') {
           try {
-            requestBody = JSON.parse(req.body);
+            const parsed = JSON.parse(requestBody);
+            url = parsed.url;
           } catch (e) {
             console.error('Failed to parse string body:', e);
           }
         }
       }
       
-      console.log('Request Body:', JSON.stringify(requestBody));
-      
-      const url = requestBody.url;
-      
-      console.log('URL to audit:', url);
+      console.log('Extracted URL:', url);
       
       // Validate URL
       if (!url) {
@@ -54,6 +50,11 @@ module.exports = async (req, res) => {
       // Generate a score that changes slightly for each domain
       let score = 78;
       try {
+        // Clean URL for consistency
+        if (!url.startsWith('http')) {
+          url = 'https://' + url;
+        }
+        
         const domain = new URL(url).hostname;
         // Generate a score based on domain name
         const sum = domain.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -138,8 +139,10 @@ module.exports = async (req, res) => {
         })
       };
       
-      // CRITICAL FIX: Set content type and return JSON response
+      // Set explicit content type
       res.setHeader('Content-Type', 'application/json');
+      
+      // Return success response with mock data
       return res.status(200).json(mockAuditResult);
     } catch (error) {
       // Handle errors
@@ -159,5 +162,6 @@ module.exports = async (req, res) => {
     message: 'Marden SEO Audit API is running',
     timestamp: new Date().toISOString(),
     version: '1.0.0',
+    note: 'POST to this same endpoint to run an audit with {"url":"your-website.com"}'
   });
 };
