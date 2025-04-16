@@ -1,4 +1,4 @@
-// Dedicated audit generation endpoint that only returns audit results
+// Dedicated audit generation endpoint that works with GET requests
 module.exports = (req, res) => {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -11,7 +11,13 @@ module.exports = (req, res) => {
     return res.status(200).end();
   }
 
-  // Extract URL and validate
+  // Log all request details for debugging
+  console.log('Request method:', req.method);
+  console.log('Request headers:', JSON.stringify(req.headers));
+  console.log('Request query:', JSON.stringify(req.query));
+  console.log('Request body:', JSON.stringify(req.body));
+
+  // Extract URL from query parameters or body
   let url = "example.com";
   if (req.query && req.query.url) {
     url = req.query.url;
@@ -21,7 +27,7 @@ module.exports = (req, res) => {
   
   console.log(`Generating audit for: ${url}`);
   
-  // Generate a score that changes slightly for each domain
+  // Generate deterministic scores based on the URL
   let score = 78;
   try {
     // Clean URL for consistency
@@ -51,7 +57,7 @@ module.exports = (req, res) => {
   const opportunities = Math.floor(10 - (score / 10));
   
   // Return mock audit result
-  return res.status(200).json({
+  const result = {
     url: url,
     score: score,
     issuesFound: issuesFound,
@@ -86,5 +92,12 @@ module.exports = (req, res) => {
         description: 'Consider adding structured data',
       },
     ]
-  });
+  };
+  
+  // Log result for debugging
+  console.log('Sending result:', JSON.stringify(result));
+  
+  // Set explicit content type
+  res.setHeader('Content-Type', 'application/json');
+  return res.status(200).json(result);
 };
