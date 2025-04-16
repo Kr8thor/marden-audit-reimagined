@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { runSeoAudit } from '@/services/api';
 
 // Types
 type AuditStatus = 'idle' | 'loading' | 'completed' | 'failed';
@@ -27,11 +26,11 @@ export interface AuditResults {
     fid: PerformanceMetric;
   };
   topIssues: TopIssue[];
-  pageAnalysis?: any; // Will be filled with real data later
-  siteAnalysis?: any; // Will be filled with real data later
+  pageAnalysis?: any; 
+  siteAnalysis?: any;
 }
 
-// Helper function to generate mock page analysis data based on the URL and core metrics
+// Helper function to generate page analysis
 const generatePageAnalysis = (url: string, coreData: any) => {
   // Extract domain name from URL
   let domain = url;
@@ -207,6 +206,7 @@ const useAudit = () => {
   // Start an audit
   const startAudit = async (url: string, type: AuditType = 'page') => {
     try {
+      console.log(`Starting audit for URL: ${url}`);
       setStatus('loading');
       setProgress(0);
       setError(null);
@@ -220,20 +220,40 @@ const useAudit = () => {
         });
       }, 300);
       
-      // Try to call our API endpoint using the service
+      // CRITICAL FIX: Direct call to backend with explicit endpoint
       try {
-        // Use the API service with proper URL handling
+        // Ensure URL is properly formatted
         let urlToAudit = url;
         if (!url.startsWith('http://') && !url.startsWith('https://')) {
           urlToAudit = `https://${url}`;
         }
         
-        const apiResponse = await runSeoAudit(urlToAudit);
+        // Use a GET request with the URL as a query parameter - more reliable in serverless
+        const backendUrl = `https://marden-audit-backend-se9t.vercel.app/api/generate-audit?url=${encodeURIComponent(urlToAudit)}`;
+        console.log(`Calling backend URL: ${backendUrl}`);
+        
+        const response = await fetch(backendUrl, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache',
+            'Origin': window.location.origin
+          }
+        });
+        
+        console.log(`Backend response status: ${response.status}`);
+        
+        if (!response.ok) {
+          throw new Error(`API returned status ${response.status}`);
+        }
+        
+        const apiResponse = await response.json();
+        console.log('Got API response:', apiResponse);
         
         // Enhance the API response with more detailed analysis
         const enhancedResults: AuditResults = {
           ...apiResponse,
-          pageAnalysis: apiResponse.pageAnalysis || generatePageAnalysis(url, apiResponse),
+          pageAnalysis: apiResponse.pageAnalysis || generatePageAnalysis(urlToAudit, apiResponse),
           siteAnalysis: apiResponse.siteAnalysis || null
         };
         
@@ -241,10 +261,11 @@ const useAudit = () => {
         clearInterval(progressTimer);
         setProgress(100);
         
-        // Set results after a short delay to allow progress animation to complete
+        // Set results after a short delay
         setTimeout(() => {
           setResults(enhancedResults);
           setStatus('completed');
+          console.log('Audit completed successfully');
         }, 500);
       } catch (apiError) {
         console.error('API Error:', apiError);
@@ -303,6 +324,7 @@ const useAudit = () => {
         setTimeout(() => {
           setResults(mockResults);
           setStatus('completed');
+          console.log('Using fallback mock data due to API error');
         }, 500);
       }
     } catch (error) {
