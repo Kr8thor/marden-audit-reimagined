@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import Header from '../components/Header';
-import Hero from '../components/Hero';
+import SimpleHero from '../components/SimpleHero';
 import FeatureCards from '../components/FeatureCards';
 import FeatureHighlights from '../components/FeatureHighlights';
 import WhyFreeSection from '../components/WhyFreeSection';
@@ -58,7 +58,7 @@ const Index = () => {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-grow">
-        <Hero />
+        <SimpleHero />
         <FeatureCards />
         <FeatureHighlights />
         <WhyFreeSection />
