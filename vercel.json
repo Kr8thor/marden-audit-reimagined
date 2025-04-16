@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://backend-ixuz9y5gn-leo-corbetts-projects.vercel.app/:path*"
+      "destination": "https://backend-ixuz9y5gn-leo-corbetts-projects.vercel.app/api/:path*"
     }
   ]
 }
