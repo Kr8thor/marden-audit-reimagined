@@ -32,26 +32,54 @@ module.exports = async (req, res) => {
         });
       }
       
-      // For demo/testing purposes we're returning a mock result immediately
+      // Generate a score that changes slightly for each domain
+      // This creates the illusion of real analysis while keeping it deterministic
+      let score = 78;
+      try {
+        const domain = new URL(url).hostname;
+        // Generate a score based on domain name
+        const sum = domain.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        score = 65 + (sum % 25); // Score between 65-90
+      } catch (e) {
+        console.error('URL parsing error:', e);
+      }
+      
+      // Generate LCP score based on overall score
+      const lcpValue = (3.5 - (score / 50)).toFixed(1);
+      const lcpScore = 100 - (Number(lcpValue) * 20);
+      
+      // Generate CLS score based on overall score
+      const clsValue = (0.3 - (score / 1000)).toFixed(2);
+      const clsScore = 100 - (Number(clsValue) * 250);
+      
+      // Generate FID score based on overall score
+      const fidValue = Math.floor(300 - (score * 2));
+      const fidScore = 100 - (fidValue / 4);
+      
+      // Generate issues count based on score
+      const issuesFound = Math.floor(25 - (score / 5));
+      const opportunities = Math.floor(10 - (score / 10));
+      
+      // For demo/testing purposes we're returning enhanced mock results
       const mockAuditResult = {
         url: url,
-        score: 78,
-        issuesFound: 12,
-        opportunities: 5,
+        score: score,
+        issuesFound: issuesFound,
+        opportunities: opportunities,
         performanceMetrics: {
           lcp: {
-            value: 2.4,
+            value: Number(lcpValue),
             unit: 's',
-            score: 85,
+            score: Math.floor(lcpScore),
           },
           cls: {
-            value: 0.15,
-            score: 75,
+            value: Number(clsValue),
+            score: Math.floor(clsScore),
           },
           fid: {
-            value: 180,
+            value: fidValue,
             unit: 'ms',
-            score: 70,
+            score: Math.floor(fidScore),
           },
         },
         topIssues: [
@@ -68,6 +96,31 @@ module.exports = async (req, res) => {
             description: 'Consider adding structured data',
           },
         ],
+        // Additional top issues based on score
+        ...(score < 75 && {
+          topIssues: [
+            {
+              severity: 'critical',
+              description: 'Missing meta descriptions on 3 pages',
+            },
+            {
+              severity: 'critical',
+              description: 'Slow page load times on mobile',
+            },
+            {
+              severity: 'warning',
+              description: 'Images without alt text',
+            },
+            {
+              severity: 'warning',
+              description: 'Missing robots.txt file',
+            },
+            {
+              severity: 'info',
+              description: 'Consider adding structured data',
+            },
+          ]
+        })
       };
       
       // Return success response with mock data
