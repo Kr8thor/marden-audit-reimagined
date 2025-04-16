@@ -1,11 +1,10 @@
 // API service for Marden SEO Audit
 import { useState } from 'react';
 
-// Define the base URL for our API
-const API_URL = import.meta.env.PROD 
-  ? 'https://marden-audit-backend-se9t.vercel.app' 
-  : 'https://marden-audit-backend-se9t-qtsp5uw7a-leo-corbetts-projects.vercel.app';
+// Define the base URL for our API - direct approach for reliability
+const API_URL = 'https://marden-audit-backend-se9t.vercel.app';
 // Using direct Vercel URL for now to ensure connection works
+// Later can be changed back to domain-based URL once everything is working
 
 // Type definitions
 export interface ApiResponse {
