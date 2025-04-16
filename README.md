@@ -122,4 +122,4 @@ For production, it's recommended to set up a separate worker process to handle a
 
 - The crawler has a configurable depth and page limit to prevent excessive resource usage
 - For development, the system uses a mock Redis store if Redis is not available
-- All analyzers are modular and can be adjusted independently
+- All analyzers are modular and can be adjusted independently"# Update timestamp: $(date)"  
