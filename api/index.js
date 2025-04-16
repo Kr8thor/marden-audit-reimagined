@@ -19,10 +19,31 @@ module.exports = async (req, res) => {
   // POST requests are for audit
   if (req.method === 'POST') {
     try {
-      // Extract URL from request body
-      const { url } = req.body || {};
+      // Extract URL from request body with extra safety checks
+      let requestBody = req.body;
+      
+      // Handle string body (happens in some environments)
+      if (typeof requestBody === 'string') {
+        try {
+          requestBody = JSON.parse(requestBody);
+        } catch (e) {
+          console.error('Failed to parse request body:', e);
+        }
+      }
+      
+      // Extra fallback for Vercel environment
+      if (!requestBody && req.rawBody) {
+        try {
+          requestBody = JSON.parse(req.rawBody.toString());
+        } catch (e) {
+          console.error('Failed to parse raw body:', e);
+        }
+      }
+      
+      const url = requestBody?.url;
       
       console.log('Audit request received for URL:', url);
+      console.log('Request body:', JSON.stringify(requestBody));
       
       // Validate URL
       if (!url) {
