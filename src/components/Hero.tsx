@@ -184,6 +184,7 @@ const Hero = () => {
                       pageAnalysis={results?.pageAnalysis}
                       siteAnalysis={results?.siteAnalysis}
                       url={url}
+                      result={results}
                     />
                   )}
                   
