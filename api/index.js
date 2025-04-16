@@ -1,4 +1,6 @@
-module.exports = (req, res) => {
+// Combined index and audit endpoints for Vercel serverless function
+
+module.exports = async (req, res) => {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -10,10 +12,17 @@ module.exports = (req, res) => {
     return res.status(200).end();
   }
   
-  // Check if this is an audit request
-  if (req.url.includes('/audit') && req.method === 'POST') {
+  // For debugging - log the request details
+  console.log('Request URL:', req.url);
+  console.log('Request Method:', req.method);
+  
+  // POST requests are for audit
+  if (req.method === 'POST') {
     try {
-      const { url } = req.body;
+      // Extract URL from request body
+      const { url } = req.body || {};
+      
+      console.log('Audit request received for URL:', url);
       
       // Validate URL
       if (!url) {
@@ -61,29 +70,26 @@ module.exports = (req, res) => {
         ],
       };
       
-      // Return success response with mock data for now
+      // Return success response with mock data
       return res.status(200).json(mockAuditResult);
     } catch (error) {
       // Handle errors
-      console.error('Error creating audit job:', error);
+      console.error('Error handling audit request:', error);
       
       return res.status(500).json({
         status: 'error',
-        message: 'Failed to create audit job',
+        message: 'Failed to process audit request',
         error: error.message,
       });
     }
   }
   
-  // Default response for API root
-  res.status(200).json({
+  // GET requests return API status
+  return res.status(200).json({
     status: 'ok',
     message: 'Marden SEO Audit API is running',
     timestamp: new Date().toISOString(),
     version: '1.0.0',
-    endpoints: [
-      { path: '/api', method: 'GET', description: 'API status' },
-      { path: '/api/audit', method: 'POST', description: 'Run an SEO audit', params: { url: 'Website URL to audit' } }
-    ]
+    note: 'POST to this same endpoint to run an audit with {"url":"your-website.com"}'
   });
 };
