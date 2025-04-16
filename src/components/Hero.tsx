@@ -4,7 +4,7 @@ import { ChevronRight, Play, Search, AlertTriangle } from 'lucide-react';
 import { Dialog, DialogContent, DialogTrigger } from './ui/dialog';
 import AnimatedButton from './AnimatedButton';
 import CircularProgress from './CircularProgress';
-import useAuditNew from '../hooks/useAuditNew';
+import { useSeoAudit } from '../hooks/useSeoAudit';
 import AuditResults from './audit/AuditResults';
 import AuditError from './audit/AuditError';
 
@@ -15,20 +15,18 @@ const Hero = () => {
   const [url, setUrl] = useState('');
   const [urlError, setUrlError] = useState<string | null>(null);
   
-  // Use our new hook
+  // Use our new SEO audit hook
   const {
     isLoading: isScanning,
     progress: scanProgress,
-    status,
-    results,
+    result,
     error,
-    startAudit,
-    resetAudit
-  } = useAuditNew();
+    runAudit
+  } = useSeoAudit();
   
   // Computed state
-  const showResults = status === 'completed' && results !== null;
-  const showError = status === 'failed' && error !== null;
+  const showResults = !isScanning && result !== null;
+  const showError = !isScanning && error !== null;
   
   // Handle URL validation
   const validateUrl = (input: string) => {
@@ -42,11 +40,15 @@ const Hero = () => {
   };
   
   // Handle scan button click
-  const handleScan = async () => {
+  const handleScan = () => {
     if (!url || urlError) return;
-    
-    // Start audit with the URL
-    await startAudit(url, 'page');
+    runAudit(url);
+  };
+  
+  // Reset error state
+  const resetError = () => {
+    setUrl('');
+    setUrlError(null);
   };
   
   return (
@@ -70,9 +72,7 @@ const Hero = () => {
                 glowColor="purple"
                 className="w-full sm:w-auto"
                 onClick={() => {
-                  // Scroll to the URL input
                   document.getElementById('audit-input')?.scrollIntoView({ behavior: 'smooth' });
-                  // Focus on the input field
                   setTimeout(() => {
                     const inputElement = document.querySelector('input[placeholder="Enter your website URL"]') as HTMLInputElement;
                     if (inputElement) inputElement.focus();
@@ -119,8 +119,8 @@ const Hero = () => {
                 <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5 text-red-400" />
                   <div className="text-sm">
-                    <span className="font-medium">API Connection Error: </span> 
-                    <span className="text-white/70">Using local audit generation instead.</span>
+                    <span className="font-medium">Error: </span> 
+                    <span className="text-white/70">{error}</span>
                   </div>
                 </div>
               )}
@@ -178,15 +178,15 @@ const Hero = () => {
                   
                   {showResults && (
                     <AuditResults 
-                      pageAnalysis={results?.pageAnalysis}
-                      siteAnalysis={results?.siteAnalysis}
+                      pageAnalysis={result?.pageAnalysis}
+                      siteAnalysis={null}
                       url={url}
-                      result={results}
+                      result={result}
                     />
                   )}
                   
                   {showError && (
-                    <AuditError message={error} onReset={resetAudit} />
+                    <AuditError message={error} onReset={resetError} />
                   )}
                   
                   {!isScanning && !showResults && !showError && (
