@@ -4,5 +4,8 @@
       "source": "/api/:path*",
       "destination": "https://backend-ixuz9y5gn-leo-corbetts-projects.vercel.app/api/:path*"
     }
+  ],
+  "builds": [
+    { "src": "package.json", "use": "@vercel/node" }
   ]
 }
