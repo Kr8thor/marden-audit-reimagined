@@ -1,25 +1,9 @@
 {
-  "name": "marden-audit-reimagined",
-  "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
-    }
-  ],
+  "framework": "vite",
   "rewrites": [
     {
       "source": "/api/:path*",
       "destination": "https://marden-audit-backend-se9t.vercel.app/api/:path*"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
     }
   ]
 }
