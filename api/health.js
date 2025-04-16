@@ -1,5 +1,5 @@
 // Health check endpoint
-export default function handler(req, res) {
+module.exports = function handler(req, res) {
   res.status(200).json({ 
     status: 'ok',
     service: 'Marden SEO Audit API',
