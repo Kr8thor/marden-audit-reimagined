@@ -1,5 +1,4 @@
-// Direct audit endpoint handler
-const { createJob } = require('./lib/redis.js');
+// Root-level audit endpoint for Vercel serverless function
 
 module.exports = async (req, res) => {
   // Enable CORS
@@ -22,23 +21,13 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { url, options } = req.body;
+    const { url } = req.body;
     
     // Validate URL
     if (!url) {
       return res.status(400).json({
         status: 'error',
         message: 'URL is required',
-      });
-    }
-    
-    // Validate URL format
-    try {
-      new URL(url);
-    } catch (error) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Invalid URL provided',
       });
     }
     
