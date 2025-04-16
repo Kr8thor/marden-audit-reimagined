@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Input } from './ui/input';
 import { ChevronRight, Play, Search, AlertTriangle } from 'lucide-react';
 import { Dialog, DialogContent, DialogTrigger } from './ui/dialog';
 import AnimatedButton from './AnimatedButton';
 import CircularProgress from './CircularProgress';
-import useAudit from '../hooks/use-audit';
+import useAuditNew from '../hooks/useAuditNew';
 import AuditResults from './audit/AuditResults';
 import AuditError from './audit/AuditError';
 
@@ -15,7 +15,7 @@ const Hero = () => {
   const [url, setUrl] = useState('');
   const [urlError, setUrlError] = useState<string | null>(null);
   
-  // Use our custom hook
+  // Use our new hook
   const {
     isLoading: isScanning,
     progress: scanProgress,
@@ -24,7 +24,7 @@ const Hero = () => {
     error,
     startAudit,
     resetAudit
-  } = useAudit();
+  } = useAuditNew();
   
   // Computed state
   const showResults = status === 'completed' && results !== null;
@@ -45,11 +45,8 @@ const Hero = () => {
   const handleScan = async () => {
     if (!url || urlError) return;
     
-    // Add https if missing
-    const formattedUrl = url.startsWith('http') ? url : `https://${url}`;
-    
-    // Start audit
-    await startAudit(formattedUrl, 'page'); // Use page audit for faster results
+    // Start audit with the URL
+    await startAudit(url, 'page');
   };
   
   return (
@@ -123,7 +120,7 @@ const Hero = () => {
                   <AlertTriangle className="h-5 w-5 text-red-400" />
                   <div className="text-sm">
                     <span className="font-medium">API Connection Error: </span> 
-                    <span className="text-white/70">Unable to connect to the audit backend.</span>
+                    <span className="text-white/70">Using local audit generation instead.</span>
                   </div>
                 </div>
               )}
