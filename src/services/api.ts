@@ -66,15 +66,28 @@ export const checkApiStatus = async (): Promise<ApiResponse> => {
 export const runSeoAudit = async (url: string): Promise<AuditResult> => {
   try {
     console.log('Running SEO audit for URL:', url);
-    console.log('API endpoint:', `${API_URL}`);
+    console.log('API endpoint:', `${API_URL}/audit-v2`);
     
-    const response = await fetch(`${API_URL}`, {
+    // Try the dedicated audit-v2 endpoint first
+    let response = await fetch(`${API_URL}/audit-v2`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ url }),
     });
+    
+    // If that fails, try the main API endpoint as fallback
+    if (!response.ok) {
+      console.log('Dedicated endpoint failed, trying main API endpoint');
+      response = await fetch(`${API_URL}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
+      });
+    }
     
     console.log('API response status:', response.status);
     
