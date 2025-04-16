@@ -1,8 +1,8 @@
 // API service for Marden SEO Audit
 import { useState } from 'react';
 
-// Define the base URL for our API
-const API_URL = '/api'; // Use the rewrite rule configured in vercel.json
+// Define the base URL for our API - direct connection to backend
+const API_URL = 'https://marden-audit-backend-se9t.vercel.app/api';
 
 // Type definitions
 export interface ApiResponse {
@@ -47,7 +47,13 @@ export interface AuditResult {
 export const checkApiStatus = async (): Promise<ApiResponse> => {
   try {
     console.log('Checking API status at:', `${API_URL}`);
-    const response = await fetch(`${API_URL}`);
+    const response = await fetch(`${API_URL}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache'
+      },
+    });
     if (!response.ok) {
       throw new Error(`API returned status ${response.status}`);
     }
@@ -66,28 +72,18 @@ export const checkApiStatus = async (): Promise<ApiResponse> => {
 export const runSeoAudit = async (url: string): Promise<AuditResult> => {
   try {
     console.log('Running SEO audit for URL:', url);
-    console.log('API endpoint:', `${API_URL}/audit-v2`);
+    console.log('API endpoint:', `${API_URL}`);
     
-    // Try the dedicated audit-v2 endpoint first
-    let response = await fetch(`${API_URL}/audit-v2`, {
+    // CRITICAL FIX: Direct call to backend API with explicit CORS headers
+    const response = await fetch(`${API_URL}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Origin': window.location.origin,
+        'Cache-Control': 'no-cache'
       },
       body: JSON.stringify({ url }),
     });
-    
-    // If that fails, try the main API endpoint as fallback
-    if (!response.ok) {
-      console.log('Dedicated endpoint failed, trying main API endpoint');
-      response = await fetch(`${API_URL}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url }),
-      });
-    }
     
     console.log('API response status:', response.status);
     
