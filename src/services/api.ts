@@ -1,8 +1,8 @@
 // API service for Marden SEO Audit
 import { useState } from 'react';
 
-// Define the base URL for our API - direct connection to backend
-const API_URL = 'https://marden-audit-backend-se9t.vercel.app/api';
+// Define the base URL for our API - using local API endpoint
+const API_URL = '/api';
 
 // Type definitions
 export interface ApiResponse {
@@ -72,18 +72,36 @@ export const checkApiStatus = async (): Promise<ApiResponse> => {
 export const runSeoAudit = async (url: string): Promise<AuditResult> => {
   try {
     console.log('Running SEO audit for URL:', url);
-    console.log('API endpoint:', `${API_URL}`);
     
-    // CRITICAL FIX: Direct call to backend API with explicit CORS headers
-    const response = await fetch(`${API_URL}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': window.location.origin,
-        'Cache-Control': 'no-cache'
-      },
-      body: JSON.stringify({ url }),
-    });
+    // Super simple direct approach - using the absolutely simplest endpoint
+    const encodedUrl = encodeURIComponent(url);
+    const apiUrl = `/api/simple-audit?url=${encodedUrl}`;
+    
+    console.log('Making direct request to:', apiUrl);
+    
+    const response = await fetch(apiUrl);
+    
+    if (!response.ok) {
+      throw new Error(`API returned status ${response.status}`);
+    }
+    
+    return await response.json();
+    
+    console.log('API response status:', response.status);
+    
+    if (!response.ok) {
+      throw new Error(`API returned status ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log('API response data:', data);
+    
+    // If the API returns an error status
+    if (data.status === 'error') {
+      throw new Error(data.message || 'Unknown API error');
+    }
+    
+    return data;
     
     console.log('API response status:', response.status);
     
