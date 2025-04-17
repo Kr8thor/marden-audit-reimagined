@@ -1,35 +1,13 @@
 {
   "version": 2,
-  "env": {
-    "NODE_ENV": "production",
-    "UPSTASH_REDIS_REST_URL": "https://smiling-shrimp-21387.upstash.io",
-    "UPSTASH_REDIS_REST_TOKEN": "AVOLAAIjcDFmNzVjNDVjZGM3MGY0NDczODEyMTA0NTAyOGNkMTc5OXAxMA",
-    "QUEUE_NAME": "marden_audit_queue",
-    "PROCESSING_QUEUE_NAME": "marden_audit_processing",
-    "JOB_PREFIX": "job:",
-    "MAX_PAGES": "20",
-    "CRAWL_DEPTH": "2",
-    "TIMEOUT": "30000",
-    "USER_AGENT": "MardenSEO Audit Bot v1.0",
-    "ALLOWED_ORIGINS": "*",
-    "LOG_LEVEL": "info"
-  },
+  "buildCommand": "npm install",
+  "outputDirectory": "api",
   "functions": {
     "api/main.js": {
       "memory": 1024,
       "maxDuration": 60
     }
   },
-  "rewrites": [
-    { "source": "/api", "destination": "/api/main.js" },
-    { "source": "/api/health", "destination": "/api/main.js?path=health" },
-    { "source": "/api/audit", "destination": "/api/main.js?path=audit" },
-    { "source": "/api/audit/site", "destination": "/api/main.js?path=audit/site" },
-    { "source": "/api/audit/page", "destination": "/api/main.js?path=audit/page" },
-    { "source": "/api/job/:id", "destination": "/api/main.js?path=job&id=:id" },
-    { "source": "/api/job/:id/results", "destination": "/api/main.js?path=job/results&id=:id" },
-    { "source": "/api/worker", "destination": "/api/main.js?path=worker" }
-  ],
   "headers": [
     {
       "source": "/(.*)",
@@ -41,10 +19,14 @@
       ]
     }
   ],
-  "crons": [
-    {
-      "path": "/api/worker",
-      "schedule": "0 0 * * *"
-    }
+  "routes": [
+    { "src": "/api", "dest": "/api/main.js" },
+    { "src": "/api/health", "dest": "/api/main.js?path=health" },
+    { "src": "/api/audit", "dest": "/api/main.js?path=audit" },
+    { "src": "/api/audit/site", "dest": "/api/main.js?path=audit/site" },
+    { "src": "/api/audit/page", "dest": "/api/main.js?path=audit/page" },
+    { "src": "/api/job/([^/]+)$", "dest": "/api/main.js?path=job&id=$1" },
+    { "src": "/api/job/([^/]+)/results", "dest": "/api/main.js?path=job/results&id=$1" },
+    { "src": "/api/worker", "dest": "/api/main.js?path=worker" }
   ]
 }
