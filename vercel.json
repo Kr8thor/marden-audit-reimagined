@@ -15,20 +15,25 @@
     "LOG_LEVEL": "info"
   },
   "functions": {
-    "api/consolidated/*.js": {
+    "api/main.js": {
       "memory": 1024,
       "maxDuration": 60
+    },
+    "api/utils.js": {
+      "memory": 512,
+      "maxDuration": 15
     }
   },
   "rewrites": [
-    { "source": "/api", "destination": "/api/consolidated/index.js" },
-    { "source": "/api/health", "destination": "/api/consolidated/index.js" },
-    { "source": "/api/audit", "destination": "/api/consolidated/audit.js" },
-    { "source": "/api/audit/site", "destination": "/api/consolidated/audit.js?type=site" },
-    { "source": "/api/audit/page", "destination": "/api/consolidated/audit.js?type=page" },
-    { "source": "/api/job/:id", "destination": "/api/consolidated/job.js?id=:id" },
-    { "source": "/api/job/:id/results", "destination": "/api/consolidated/job.js?id=:id&results=true" },
-    { "source": "/api/worker", "destination": "/api/consolidated/worker.js" }
+    { "source": "/api", "destination": "/api/main" },
+    { "source": "/api/", "destination": "/api/main" },
+    { "source": "/api/health", "destination": "/api/main" },
+    { "source": "/api/audit", "destination": "/api/main" },
+    { "source": "/api/audit/site", "destination": "/api/main" },
+    { "source": "/api/audit/page", "destination": "/api/main" },
+    { "source": "/api/job/:id", "destination": "/api/main" },
+    { "source": "/api/job/:id/results", "destination": "/api/main" },
+    { "source": "/api/worker", "destination": "/api/main" }
   ],
   "headers": [
     {
