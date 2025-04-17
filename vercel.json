@@ -5,7 +5,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://marden-audit-backend-fresh.vercel.app/api/:path*"
+      "destination": "https://fresh-backend-qmq0rx8q5-leo-corbetts-projects.vercel.app/api/:path*"
     }
   ],
   "headers": [
