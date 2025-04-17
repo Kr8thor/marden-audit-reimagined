@@ -20,15 +20,15 @@
       "maxDuration": 60
     }
   },
-  "routes": [
-    { "src": "/api$", "dest": "/api/consolidated/index.js" },
-    { "src": "/api/health", "dest": "/api/consolidated/index.js" },
-    { "src": "/api/audit$", "dest": "/api/consolidated/audit.js" },
-    { "src": "/api/audit/site", "dest": "/api/consolidated/audit.js?type=site" },
-    { "src": "/api/audit/page", "dest": "/api/consolidated/audit.js?type=page" },
-    { "src": "/api/job/([^/]+)$", "dest": "/api/consolidated/job.js?id=$1" },
-    { "src": "/api/job/([^/]+)/results", "dest": "/api/consolidated/job.js?id=$1&results=true" },
-    { "src": "/api/worker", "dest": "/api/consolidated/worker.js" }
+  "rewrites": [
+    { "source": "/api", "destination": "/api/consolidated/index.js" },
+    { "source": "/api/health", "destination": "/api/consolidated/index.js" },
+    { "source": "/api/audit", "destination": "/api/consolidated/audit.js" },
+    { "source": "/api/audit/site", "destination": "/api/consolidated/audit.js?type=site" },
+    { "source": "/api/audit/page", "destination": "/api/consolidated/audit.js?type=page" },
+    { "source": "/api/job/:id", "destination": "/api/consolidated/job.js?id=:id" },
+    { "source": "/api/job/:id/results", "destination": "/api/consolidated/job.js?id=:id&results=true" },
+    { "source": "/api/worker", "destination": "/api/consolidated/worker.js" }
   ],
   "headers": [
     {
