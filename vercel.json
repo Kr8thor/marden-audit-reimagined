@@ -11,29 +11,24 @@
     "CRAWL_DEPTH": "2",
     "TIMEOUT": "30000",
     "USER_AGENT": "MardenSEO Audit Bot v1.0",
-    "ALLOWED_ORIGINS": "https://audit.mardenseo.com",
+    "ALLOWED_ORIGINS": "*",
     "LOG_LEVEL": "info"
   },
   "functions": {
     "api/main.js": {
       "memory": 1024,
       "maxDuration": 60
-    },
-    "api/utils.js": {
-      "memory": 512,
-      "maxDuration": 15
     }
   },
   "rewrites": [
-    { "source": "/api", "destination": "/api/main" },
-    { "source": "/api/", "destination": "/api/main" },
-    { "source": "/api/health", "destination": "/api/main" },
-    { "source": "/api/audit", "destination": "/api/main" },
-    { "source": "/api/audit/site", "destination": "/api/main" },
-    { "source": "/api/audit/page", "destination": "/api/main" },
-    { "source": "/api/job/:id", "destination": "/api/main" },
-    { "source": "/api/job/:id/results", "destination": "/api/main" },
-    { "source": "/api/worker", "destination": "/api/main" }
+    { "source": "/api", "destination": "/api/main.js" },
+    { "source": "/api/health", "destination": "/api/main.js?path=health" },
+    { "source": "/api/audit", "destination": "/api/main.js?path=audit" },
+    { "source": "/api/audit/site", "destination": "/api/main.js?path=audit/site" },
+    { "source": "/api/audit/page", "destination": "/api/main.js?path=audit/page" },
+    { "source": "/api/job/:id", "destination": "/api/main.js?path=job&id=:id" },
+    { "source": "/api/job/:id/results", "destination": "/api/main.js?path=job/results&id=:id" },
+    { "source": "/api/worker", "destination": "/api/main.js?path=worker" }
   ],
   "headers": [
     {
