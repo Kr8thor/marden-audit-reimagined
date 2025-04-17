@@ -5,7 +5,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://fresh-backend-d1ikr031p-leo-corbetts-projects.vercel.app/api/:path*"
+      "destination": "https://fresh-backend-dlc0jnp4u-leo-corbetts-projects.vercel.app/api/:path*"
     }
   ],
   "headers": [
