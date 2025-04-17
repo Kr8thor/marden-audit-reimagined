@@ -17,17 +17,73 @@ This is the backend API for the MardenSEO Audit tool, providing SEO analysis cap
 - Node.js
 - Express.js
 - Redis (Upstash) for queue and caching
-- Puppeteer for web crawling and analysis
+- Vercel Serverless Functions
 
-## Getting Started
+## Vercel Deployment Optimization
+
+This project has been optimized for deployment on Vercel's Hobby plan, which has a limit of 12 serverless functions. The optimization includes:
+
+- Consolidated API endpoints in the `api/consolidated` directory
+- Route configuration in `vercel.json` to map standard API paths to consolidated endpoints
+- Simplified CORS handling built into each endpoint
+
+## API Endpoints
+
+The following endpoints are available:
+
+- `GET /api` - API status and health check
+- `GET /api/health` - Detailed health check
+- `POST /api/audit/site` - Submit a URL for site audit
+- `POST /api/audit/page` - Submit a URL for page audit
+- `GET /api/job/:id` - Get job status
+- `GET /api/job/:id/results` - Get job results
+- `GET /api/worker` - Process jobs from queue (also run on schedule)
+
+## Deployment Instructions
 
 ### Prerequisites
 
-- Node.js 16+
-- npm or yarn
-- Upstash Redis account (for production)
+- Vercel CLI installed and configured
+- Git for version control
 
-### Installation
+### Deployment Steps
+
+1. Ensure you have the latest code:
+   ```
+   git pull origin main
+   ```
+
+2. Use the provided deployment script:
+   ```
+   # On Linux/Mac
+   ./deploy.sh
+   
+   # On Windows
+   deploy.bat
+   ```
+
+3. Or deploy manually:
+   ```
+   vercel --prod
+   ```
+
+## Environment Variables
+
+The following environment variables are configured in Vercel:
+
+- `UPSTASH_REDIS_REST_URL` - Upstash Redis URL
+- `UPSTASH_REDIS_REST_TOKEN` - Upstash Redis auth token
+- `QUEUE_NAME` - Name of the main job queue
+- `PROCESSING_QUEUE_NAME` - Name of the processing queue
+- `JOB_PREFIX` - Prefix for job keys in Redis
+- `MAX_PAGES` - Maximum pages to crawl per site
+- `CRAWL_DEPTH` - Maximum crawl depth
+- `TIMEOUT` - Request timeout in milliseconds
+- `USER_AGENT` - Custom user agent for crawling
+- `ALLOWED_ORIGINS` - CORS allowed origins
+- `LOG_LEVEL` - Logging level
+
+## Local Development
 
 1. Clone the repository:
    ```
@@ -40,86 +96,17 @@ This is the backend API for the MardenSEO Audit tool, providing SEO analysis cap
    npm install
    ```
 
-3. Configure environment variables:
+3. Set up environment variables:
    - Copy `.env.example` to `.env`
-   - Set Redis configuration
-   - Adjust other settings as needed
+   - Configure Redis and other settings
 
 4. Start the development server:
    ```
    npm run dev
    ```
 
-5. Build for production:
-   ```
-   npm run build
-   ```
+## Troubleshooting
 
-## API Endpoints
-
-- `POST /api/audit/site` - Submit a site for audit
-- `POST /api/audit/page` - Submit a single page for audit
-- `GET /api/job/:id` - Get job status
-- `GET /api/job/:id/results` - Get job results
-- `GET /api/status` - Get queue status
-- `GET /api/health` - Health check
-
-## Deployment to Vercel
-
-### Setup
-
-1. Push your code to GitHub
-
-2. Create a new project in Vercel
-   - Connect your GitHub repository
-   - Set the framework preset to Node.js
-   - Configure the following settings:
-     - Build Command: `npm run build`
-     - Output Directory: `dist`
-     - Install Command: `npm install`
-
-3. Environment Variables
-   - Add all variables from your `.env` file to Vercel
-   - Ensure `REDIS_URL` and `REDIS_TOKEN` are set to your Upstash credentials
-   - Set `NODE_ENV=production`
-
-4. Deploy
-
-### Upstash Redis Configuration
-
-1. Create an Upstash Redis database
-2. Set the `REDIS_URL` and `REDIS_TOKEN` environment variables in Vercel
-3. Configure Redis to allow access from Vercel's IP ranges
-
-### Vercel Serverless Functions Optimization
-
-Since this application uses Puppeteer, which can be resource-intensive:
-
-1. Add the following to your `vercel.json`:
-   ```json
-   {
-     "functions": {
-       "api/*.js": {
-         "memory": 1024,
-         "maxDuration": 60
-       }
-     }
-   }
-   ```
-
-2. Consider using Vercel's Edge functions for health checks and status endpoints
-
-## Worker Configuration
-
-For production, it's recommended to set up a separate worker process to handle audit jobs:
-
-1. Deploy the main API to Vercel
-2. Set up a separate worker on a VPS or containerized environment
-3. Configure both to use the same Redis instance
-4. Use environment variables to control worker behavior
-
-## Development Notes
-
-- The crawler has a configurable depth and page limit to prevent excessive resource usage
-- For development, the system uses a mock Redis store if Redis is not available
-- All analyzers are modular and can be adjusted independently"# Update timestamp: $(date)"  
+- If you encounter deployment issues, check the Vercel logs
+- For Redis connectivity issues, verify your Upstash credentials
+- For CORS issues, check the ALLOWED_ORIGINS environment variable

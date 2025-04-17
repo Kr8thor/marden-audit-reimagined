@@ -15,11 +15,21 @@
     "LOG_LEVEL": "info"
   },
   "functions": {
-    "api/*.js": {
+    "api/consolidated/*.js": {
       "memory": 1024,
       "maxDuration": 60
     }
   },
+  "routes": [
+    { "src": "/api$", "dest": "/api/consolidated/index.js" },
+    { "src": "/api/health", "dest": "/api/consolidated/index.js" },
+    { "src": "/api/audit$", "dest": "/api/consolidated/audit.js" },
+    { "src": "/api/audit/site", "dest": "/api/consolidated/audit.js?type=site" },
+    { "src": "/api/audit/page", "dest": "/api/consolidated/audit.js?type=page" },
+    { "src": "/api/job/([^/]+)$", "dest": "/api/consolidated/job.js?id=$1" },
+    { "src": "/api/job/([^/]+)/results", "dest": "/api/consolidated/job.js?id=$1&results=true" },
+    { "src": "/api/worker", "dest": "/api/consolidated/worker.js" }
+  ],
   "headers": [
     {
       "source": "/(.*)",
@@ -34,7 +44,7 @@
   "crons": [
     {
       "path": "/api/worker",
-      "schedule": "* * * * *"
+      "schedule": "*/15 * * * *"
     }
   ]
 }
