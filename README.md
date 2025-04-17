@@ -19,6 +19,14 @@ This is the frontend application for MardenSEO Audit tool, a comprehensive SEO a
 - Lucide React for icons
 - Recharts for data visualization
 
+## Deployment Optimization
+
+This project has been optimized for deployment on Vercel with fixes for:
+
+- Dependency conflicts by using the `--legacy-peer-deps` flag
+- API routing to the backend through Vercel rewrites
+- Build configuration optimized for Vercel
+
 ## Getting Started
 
 ### Prerequisites
@@ -36,61 +44,73 @@ This is the frontend application for MardenSEO Audit tool, a comprehensive SEO a
 
 2. Install dependencies:
    ```
-   npm install
+   npm install --legacy-peer-deps
    ```
 
-3. Configure environment variables:
-   - Create a `.env` file based on `.env.example`
-   - Set `VITE_API_URL` to point to your backend API
-
-4. Start the development server:
+3. Start the development server:
    ```
    npm run dev
    ```
 
-5. Build for production:
+4. Build for production:
    ```
    npm run build
    ```
 
-## Deployment to Vercel
+## Deployment Instructions
 
-### Setup
+### Prerequisites
 
-1. Push your code to GitHub
+- Vercel CLI installed and configured
+- Git for version control
 
-2. Create a new project in Vercel
-   - Connect your GitHub repository
-   - Set the framework preset to Vite
-   - Configure the following settings:
-     - Build Command: `npm run build`
-     - Output Directory: `dist`
-     - Install Command: `npm install`
+### Deployment Steps
 
-3. Environment Variables
-   - Add `VITE_API_URL` environment variable pointing to your backend API
-   - For a combined deployment, you can use `/api` as the value
+1. Ensure you have the latest code:
+   ```
+   git pull origin main
+   ```
 
-4. Deploy
+2. Use the provided deployment script:
+   ```
+   # On Linux/Mac
+   ./deploy.sh
+   
+   # On Windows
+   deploy.bat
+   ```
 
-### Production Optimizations
+3. Or deploy manually:
+   ```
+   vercel --prod
+   ```
 
-- Enable Vercel Edge Network for global CDN
-- Configure custom domain (e.g., audit.mardenseo.com)
-- Set up Vercel Analytics for monitoring
+## Backend Integration
 
-## Connecting with Backend
+The frontend is configured to connect to the backend API through the `/api` endpoint. In production, all API requests are automatically proxied to the deployed backend via Vercel rewrites configured in `vercel.json`.
 
-This frontend is designed to work with the MardenSEO Audit Backend. When deploying both to Vercel:
+For local development, set the `VITE_API_URL` environment variable in your `.env` file to point to your local or development backend.
 
-1. Deploy both repositories to Vercel
-2. In the frontend project settings, add the backend as a Linked Project
-3. Configure the `VITE_API_URL` environment variable to point to `/api`
-4. Ensure proper CORS settings in the backend
+## Troubleshooting
+
+### Dependency Issues
+
+If you encounter dependency conflicts during installation, use the `--legacy-peer-deps` flag:
+
+```
+npm install --legacy-peer-deps
+```
+
+### API Connection Issues
+
+If the frontend can't connect to the backend:
+
+1. Check the backend deployment status
+2. Verify the API URL in `vercel.json` is correct
+3. Check for CORS issues in browser developer tools
 
 ## Development Notes
 
 - All API calls are made through the API client in `src/api/client.ts`
 - The main audit functionality is in the `useAudit` hook
 - Update API endpoints in the client if your backend routes differ
-"# Update timestamp: $(date)"  
