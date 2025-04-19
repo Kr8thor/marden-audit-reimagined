@@ -1,36 +1,354 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MardenSEO Audit - Free SEO Audit Tool Reimagined</title>
-    <meta name="description" content="Free, lightning-fast, and powered by AI—MardenSEO Audit gives you crystal-clear SEO insights with zero fluff." />
-    <meta name="author" content="MardenSEO" />
-    <meta name="keywords" content="SEO audit, website audit, technical SEO, on-page SEO, SEO analysis, free SEO tools" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEO Audit Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .input-section {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        input[type="text"] {
+            padding: 8px;
+            font-size: 16px;
+            flex: 1;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .loading {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border-left-color: #4CAF50;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .results {
+            display: none;
+        }
+        .result-item {
+            margin-bottom: 15px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            border-left: 4px solid #4CAF50;
+        }
+        .result-header {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+            display: none;
+        }
+        .score-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .score-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-right: 20px;
+            color: white;
+        }
+        .good {
+            background-color: #4CAF50;
+        }
+        .average {
+            background-color: #FFC107;
+        }
+        .poor {
+            background-color: #F44336;
+        }
+        .raw-data {
+            margin-top: 20px;
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            display: none;
+        }
+        .toggle-raw {
+            background-color: #f5f5f5;
+            color: #333;
+            border: 1px solid #ddd;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SEO Audit Tool</h1>
+        <div class="input-section">
+            <input type="text" id="urlInput" placeholder="Enter a URL to analyze (e.g., example.com)">
+            <button id="analyzeBtn">Analyze</button>
+        </div>
+        
+        <div class="loading" id="loadingIndicator">
+            <div class="spinner"></div>
+            <span>Analyzing website...</span>
+        </div>
+        
+        <div class="error" id="errorMessage"></div>
+        
+        <div class="results" id="resultsContainer">
+            <h2>SEO Analysis Results</h2>
+            
+            <div class="score-container">
+                <div class="score-circle" id="scoreCircle">0</div>
+                <div>
+                    <h3>Overall SEO Score</h3>
+                    <p id="scoreDescription">This is an evaluation of the website's SEO performance.</p>
+                </div>
+            </div>
+            
+            <div class="result-item">
+                <div class="result-header">Title</div>
+                <div id="titleResult"></div>
+            </div>
+            
+            <div class="result-item">
+                <div class="result-header">Meta Description</div>
+                <div id="metaDescriptionResult"></div>
+            </div>
+            
+            <div class="result-item">
+                <div class="result-header">Headings</div>
+                <div id="headingsResult"></div>
+            </div>
+            
+            <button class="toggle-raw" id="toggleRawBtn">Show Raw API Response</button>
+            <div class="raw-data" id="rawData"></div>
+        </div>
+    </div>
 
-    <meta property="og:title" content="MardenSEO Audit - Free SEO Audit Tool Reimagined" />
-    <meta property="og:description" content="Free, lightning-fast, and powered by AI—MardenSEO Audit gives you crystal-clear SEO insights with zero fluff." />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://audit.mardenseo.com" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@mardenseo" />
-    <meta name="twitter:title" content="MardenSEO Audit - Free SEO Audit Tool" />
-    <meta name="twitter:description" content="Free, lightning-fast, and powered by AI SEO audit tool." />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-
-    <!-- Theme Color for browsers that support it -->
-    <meta name="theme-color" content="#1a1a2e" />
-    
-    <!-- Base URL for the site -->
-    <base href="/" />
-  </head>
-
-  <body>
-    <div id="root"></div>
-    <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
-    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlInput = document.getElementById('urlInput');
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const errorMessage = document.getElementById('errorMessage');
+            const resultsContainer = document.getElementById('resultsContainer');
+            const scoreCircle = document.getElementById('scoreCircle');
+            const scoreDescription = document.getElementById('scoreDescription');
+            const titleResult = document.getElementById('titleResult');
+            const metaDescriptionResult = document.getElementById('metaDescriptionResult');
+            const headingsResult = document.getElementById('headingsResult');
+            const toggleRawBtn = document.getElementById('toggleRawBtn');
+            const rawData = document.getElementById('rawData');
+            
+            analyzeBtn.addEventListener('click', async function() {
+                const url = urlInput.value.trim();
+                
+                if (!url) {
+                    showError('Please enter a valid URL');
+                    return;
+                }
+                
+                // Reset UI
+                errorMessage.style.display = 'none';
+                resultsContainer.style.display = 'none';
+                loadingIndicator.style.display = 'flex';
+                
+                try {
+                    // Clean the URL
+                    let cleanUrl = url;
+                    if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+                        cleanUrl = `https://${cleanUrl}`;
+                    }
+                    
+                    // Prepare the API URL
+                    const encodedUrl = encodeURIComponent(cleanUrl);
+                    const apiUrl = `https://marden-audit-backend-se9t.vercel.app/api/seo-analyze?url=${encodedUrl}`;
+                    
+                    console.log('Calling API:', apiUrl);
+                    
+                    // Call the backend API
+                    const response = await fetch(apiUrl);
+                    
+                    if (!response.ok) {
+                        throw new Error(`API returned status ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    console.log('API response:', data);
+                    
+                    // Store raw data
+                    rawData.textContent = JSON.stringify(data, null, 2);
+                    
+                    // Display results
+                    displayResults(data);
+                    
+                } catch (error) {
+                    console.error('Error:', error);
+                    showError(`Error: ${error.message}`);
+                    loadingIndicator.style.display = 'none';
+                }
+            });
+            
+            toggleRawBtn.addEventListener('click', function() {
+                if (rawData.style.display === 'block') {
+                    rawData.style.display = 'none';
+                    toggleRawBtn.textContent = 'Show Raw API Response';
+                } else {
+                    rawData.style.display = 'block';
+                    toggleRawBtn.textContent = 'Hide Raw API Response';
+                }
+            });
+            
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.style.display = 'block';
+                loadingIndicator.style.display = 'none';
+                resultsContainer.style.display = 'none';
+            }
+            
+            function displayResults(data) {
+                loadingIndicator.style.display = 'none';
+                resultsContainer.style.display = 'block';
+                
+                // Display score
+                const score = data.score;
+                scoreCircle.textContent = score;
+                
+                // Set score color
+                if (score >= 80) {
+                    scoreCircle.className = 'score-circle good';
+                    scoreDescription.textContent = 'Great! Your website has good SEO practices.';
+                } else if (score >= 60) {
+                    scoreCircle.className = 'score-circle average';
+                    scoreDescription.textContent = 'Your website has some SEO issues that could be improved.';
+                } else {
+                    scoreCircle.className = 'score-circle poor';
+                    scoreDescription.textContent = 'Your website has significant SEO issues that should be addressed.';
+                }
+                
+                // Title analysis
+                const titleAnalysis = data.pageAnalysis.title;
+                let titleHtml = `<p><strong>Text:</strong> ${titleAnalysis.text || '<em>No title found</em>'}</p>`;
+                titleHtml += `<p><strong>Length:</strong> ${titleAnalysis.length} characters`;
+                
+                if (!titleAnalysis.text) {
+                    titleHtml += ' <span style="color: red;">(Missing! Recommended: 50-60 characters)</span>';
+                } else if (titleAnalysis.length < 30) {
+                    titleHtml += ' <span style="color: red;">(Too short! Recommended: 50-60 characters)</span>';
+                } else if (titleAnalysis.length > 60) {
+                    titleHtml += ' <span style="color: orange;">(Too long! Recommended: 50-60 characters)</span>';
+                } else {
+                    titleHtml += ' <span style="color: green;">(Good length!)</span>';
+                }
+                titleHtml += '</p>';
+                titleResult.innerHTML = titleHtml;
+                
+                // Meta description analysis
+                const metaAnalysis = data.pageAnalysis.metaDescription;
+                let metaHtml = `<p><strong>Text:</strong> ${metaAnalysis.text || '<em>No meta description found</em>'}</p>`;
+                metaHtml += `<p><strong>Length:</strong> ${metaAnalysis.length} characters`;
+                
+                if (!metaAnalysis.text) {
+                    metaHtml += ' <span style="color: red;">(Missing! Recommended: 120-158 characters)</span>';
+                } else if (metaAnalysis.length < 50) {
+                    metaHtml += ' <span style="color: red;">(Too short! Recommended: 120-158 characters)</span>';
+                } else if (metaAnalysis.length > 160) {
+                    metaHtml += ' <span style="color: orange;">(Too long! Recommended: 120-158 characters)</span>';
+                } else {
+                    metaHtml += ' <span style="color: green;">(Good length!)</span>';
+                }
+                metaHtml += '</p>';
+                metaDescriptionResult.innerHTML = metaHtml;
+                
+                // Headings analysis
+                const headings = data.pageAnalysis.headings;
+                let headingsHtml = '';
+                
+                headingsHtml += `<p><strong>H1 Tags:</strong> ${headings.h1Count}`;
+                if (headings.h1Count === 0) {
+                    headingsHtml += ' <span style="color: red;">(Missing! Each page should have one H1 tag)</span>';
+                } else if (headings.h1Count > 1) {
+                    headingsHtml += ' <span style="color: orange;">(Multiple H1 tags found. Best practice is to have only one)</span>';
+                } else {
+                    headingsHtml += ' <span style="color: green;">(Good!)</span>';
+                }
+                headingsHtml += '</p>';
+                
+                headingsHtml += `<p><strong>H2 Tags:</strong> ${headings.h2Count}`;
+                if (headings.h2Count === 0) {
+                    headingsHtml += ' <span style="color: orange;">(No H2 tags found. Consider adding some for better structure)</span>';
+                } else {
+                    headingsHtml += ' <span style="color: green;">(Good!)</span>';
+                }
+                headingsHtml += '</p>';
+                
+                // Add H1 texts if available
+                if (headings.h1Texts && headings.h1Texts.length > 0) {
+                    headingsHtml += '<p><strong>H1 Content:</strong></p><ul>';
+                    headings.h1Texts.forEach(text => {
+                        headingsHtml += `<li>${text}</li>`;
+                    });
+                    headingsHtml += '</ul>';
+                }
+                
+                // Add H2 texts if available
+                if (headings.h2Texts && headings.h2Texts.length > 0) {
+                    headingsHtml += '<p><strong>H2 Content:</strong></p><ul>';
+                    headings.h2Texts.slice(0, 5).forEach(text => {
+                        headingsHtml += `<li>${text}</li>`;
+                    });
+                    if (headings.h2Texts.length > 5) {
+                        headingsHtml += `<li>...and ${headings.h2Texts.length - 5} more</li>`;
+                    }
+                    headingsHtml += '</ul>';
+                }
+                
+                headingsResult.innerHTML = headingsHtml;
+            }
+        });
+    </script>
+</body>
 </html>
