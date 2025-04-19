@@ -4,26 +4,24 @@ import { useState } from 'react';
 export interface AuditResult {
   url: string;
   score: number;
-  issuesFound: number;
-  opportunities: number;
-  performanceMetrics: {
-    lcp: {
-      value: number;
-      unit: string;
-      score: number;
+  realDataFlag: boolean;
+  cached: boolean;
+  pageAnalysis: {
+    title: {
+      text: string;
+      length: number;
     };
-    cls: {
-      value: number;
-      score: number;
+    metaDescription: {
+      text: string;
+      length: number;
     };
-    fid: {
-      value: number;
-      unit: string;
-      score: number;
+    headings: {
+      h1Count: number;
+      h1Texts: string[];
+      h2Count: number;
+      h2Texts: string[];
     };
   };
-  topIssues: any[];
-  pageAnalysis?: any;
 }
 
 export function useBasicAudit() {
@@ -32,7 +30,7 @@ export function useBasicAudit() {
   const [result, setResult] = useState<AuditResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   
-  // Simple function to run an audit - COMPLETELY REWRITTEN FOR RELIABILITY
+  // Simple function to run an audit
   const runAudit = async (url: string) => {
     try {
       // Reset state
@@ -51,81 +49,54 @@ export function useBasicAudit() {
         cleanUrl = `https://${cleanUrl}`;
       }
       
-      // CRITICAL CHANGE: Use the direct crawler endpoint with no fallbacks
+      // Use the correct backend API endpoint
       const encodedUrl = encodeURIComponent(cleanUrl);
-      const apiUrl = `/api/direct-crawler?url=${encodedUrl}`;
+      const apiUrl = `https://marden-audit-backend-se9t.vercel.app/api/basic-audit?url=${encodedUrl}`;
       
-      console.log('>>> DIRECT CALL to crawler API:', apiUrl);
+      console.log('Calling API endpoint:', apiUrl);
       
-      // Create a long timeout for the API call
-      const fetchPromise = fetch(apiUrl, {
+      // Make the API request
+      const response = await fetch(apiUrl, {
+        method: 'GET',
         headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'X-Timestamp': new Date().getTime().toString() // Prevent caching
-        }
+          'Content-Type': 'application/json',
+        },
       });
       
-      // Set a reasonable timeout
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('API request timed out after 25 seconds')), 25000);
-      });
-      
-      // Race between fetch and timeout
-      const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
-      
-      console.log('>>> RECEIVED RESPONSE with status:', response.status);
+      console.log('Received response with status:', response.status);
       
       if (!response.ok) {
         throw new Error(`API returned error status ${response.status}`);
       }
       
-      // Parse the real data
-      const rawData = await response.text();
-      console.log('>>> RAW RESPONSE:', rawData.substring(0, 100) + '...'); // Log the first 100 chars
+      // Parse the response data
+      const data = await response.json();
       
-      let data;
-      try {
-        data = JSON.parse(rawData);
-      } catch (e) {
-        console.error('>>> Failed to parse JSON:', e);
-        throw new Error('Invalid JSON response from API');
-      }
-      
-      console.log('>>> PARSED DATA:', data);
-      
-      // Verify we got real data by checking for our special flag
-      if (data.realDataFlag === "THIS_IS_REAL_DATA_NOT_MOCK") {
-        console.log('>>> CONFIRMED REAL DATA RECEIVED');
-      } else {
-        console.log('>>> WARNING: Real data flag not found');
-      }
+      // Log the final data received from API
+      console.log('Received FINAL data from API:', data);
       
       // Complete progress
       clearInterval(interval);
       setProgress(100);
       
-      // Update state with the real data
+      // Update state with the data directly from the API without any modification
       setTimeout(() => {
         setResult(data);
         setIsLoading(false);
       }, 300);
       
     } catch (e) {
-      console.error('Error running real audit:', e);
+      console.error('Error running audit:', e);
       
-      console.log('Attempting to use fallback simple audit...');
-      
-      // ⚠️ NO FALLBACKS - If the real API fails, we show the error
       clearInterval(interval);
       setProgress(0);
       
       // Provide detailed error message for debugging
-      console.error('>>> API ERROR OCCURRED:', e);
+      console.error('API ERROR OCCURRED:', e);
       
       const errorMessage = e instanceof Error 
-        ? `REAL ERROR: ${e.message}`
-        : 'REAL ERROR: Failed to connect to the audit service. Please try again.';
+        ? `Error: ${e.message}`
+        : 'Error: Failed to connect to the audit service. Please try again.';
       
       setError(errorMessage);
       setIsLoading(false);
