@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronUp, ExternalLink, AlertCircle, CheckCircle, Info } from 'lucide-react';
@@ -13,8 +13,16 @@ interface AuditResultsProps {
 const AuditResults: React.FC<AuditResultsProps> = ({ pageAnalysis, siteAnalysis, url, result }) => {
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   
-  // Combine results from props or use default mock data
+  // FIXED: Log the result data to clearly show what we're getting
+  useEffect(() => {
+    console.log("AuditResults - Raw result data:", result);
+    console.log("AuditResults - Is real data:", result?.realDataFlag ? "YES" : "NO");
+    console.log("AuditResults - Is cached:", result?.cached ? "YES" : "NO");
+  }, [result]);
+  
+  // FIXED: Use the actual API result directly without modifications
   const auditData = result || {
+    // Complete fallback mock data if no result exists
     url: url,
     score: 78,
     issuesFound: 12,
@@ -163,8 +171,23 @@ const AuditResults: React.FC<AuditResultsProps> = ({ pageAnalysis, siteAnalysis,
         </div>
         <div className="flex items-center space-x-1">
           <div className="w-3 h-3 rounded-full bg-green-400 animate-pulse"></div>
-          <div className="text-sm font-semibold text-white/90">Live Report</div>
+          <div className="text-sm font-semibold text-white/90">
+            {auditData.realDataFlag 
+              ? auditData.cached 
+                ? "Cached Data" 
+                : "Live Analysis" 
+              : "Analysis Report"}
+          </div>
         </div>
+      </div>
+      
+      {/* Show data source for debugging */}
+      <div className={`mb-4 p-2 rounded text-xs ${
+        auditData.realDataFlag ? "bg-green-500/20 border border-green-500/30" : "bg-yellow-500/20 border border-yellow-500/30"
+      }`}>
+        {auditData.realDataFlag 
+          ? `Using REAL data ${auditData.cached ? "(cached)" : "(live)"} for: ${auditData.url}` 
+          : "Using MOCK data - real analysis unavailable"}
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -267,6 +290,9 @@ const AuditResults: React.FC<AuditResultsProps> = ({ pageAnalysis, siteAnalysis,
                   <div>{issue.description}</div>
                 </div>
               ))}
+              {auditData.topIssues.filter((issue: any) => issue.severity === 'critical').length === 0 && (
+                <div className="text-xs text-center p-2">No critical issues found</div>
+              )}
             </div>
           </div>
           
@@ -287,6 +313,9 @@ const AuditResults: React.FC<AuditResultsProps> = ({ pageAnalysis, siteAnalysis,
                   <div>{issue.description}</div>
                 </div>
               ))}
+              {auditData.topIssues.filter((issue: any) => issue.severity === 'warning' || issue.severity === 'info').length === 0 && (
+                <div className="text-xs text-center p-2">No issues found</div>
+              )}
             </div>
           </div>
         </TabsContent>
