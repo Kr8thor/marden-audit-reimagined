@@ -1,14 +1,26 @@
 {
   "version": 2,
-  "buildCommand": "./build.sh",
+  "buildCommand": "npm run build",
   "installCommand": "npm install --legacy-peer-deps",
   "functions": {
-    "api/*.js": {
+    "api/index.js": {
       "memory": 1024,
+      "maxDuration": 60
+    },
+    "api/lib/*.js": {
+      "memory": 512,
       "maxDuration": 60
     }
   },
+  "routes": [
+    { "src": "/api", "dest": "/api/index.js" },
+    { "src": "/api/(.*)", "dest": "/api/index.js" }
+  ],
   "env": {
-    "NPM_FLAGS": "--legacy-peer-deps"
-  }
+    "NPM_FLAGS": "--legacy-peer-deps",
+    "REDIS_URL": "redis://default:AVOLAAIjcDFmNzVjNDVjZGM3MGY0NDczODEyMTA0NTAyOGNkMTc5OXAxMA@smiling-shrimp-21387.upstash.io:6379",
+    "ALLOWED_ORIGINS": "https://audit.mardenseo.com"
+  },
+  "framework": null,
+  "nodeVersion": "22.x"
 }
