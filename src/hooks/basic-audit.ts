@@ -60,6 +60,7 @@ export function useBasicAudit() {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache', // Prevent caching
         },
       });
       
