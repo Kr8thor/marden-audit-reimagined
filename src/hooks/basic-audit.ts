@@ -17,9 +17,9 @@ export interface AuditResult {
     };
     headings: {
       h1Count: number;
-      h1Texts: string[];
+      h1Texts?: string[];
       h2Count: number;
-      h2Texts: string[];
+      h2Texts?: string[];
     };
   };
 }
@@ -49,9 +49,9 @@ export function useBasicAudit() {
         cleanUrl = `https://${cleanUrl}`;
       }
       
-      // Use the new real-seo-audit endpoint
+      // Use the new seo-analyze endpoint
       const encodedUrl = encodeURIComponent(cleanUrl);
-      const apiUrl = `https://marden-audit-backend-se9t.vercel.app/api/real-seo-audit?url=${encodedUrl}`;
+      const apiUrl = `https://marden-audit-backend-se9t.vercel.app/api/seo-analyze?url=${encodedUrl}`;
       
       console.log('Calling API endpoint:', apiUrl);
       
