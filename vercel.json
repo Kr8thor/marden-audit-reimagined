@@ -21,6 +21,5 @@
     "REDIS_URL": "redis://default:AVOLAAIjcDFmNzVjNDVjZGM3MGY0NDczODEyMTA0NTAyOGNkMTc5OXAxMA@smiling-shrimp-21387.upstash.io:6379",
     "ALLOWED_ORIGINS": "https://audit.mardenseo.com"
   },
-  "framework": null,
-  "nodeVersion": "22.x"
+  "framework": null
 }
