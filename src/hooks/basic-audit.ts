@@ -49,9 +49,9 @@ export function useBasicAudit() {
         cleanUrl = `https://${cleanUrl}`;
       }
       
-      // Use the correct backend API endpoint
+      // Use the new real-seo-audit endpoint
       const encodedUrl = encodeURIComponent(cleanUrl);
-      const apiUrl = `https://marden-audit-backend-se9t.vercel.app/api/basic-audit?url=${encodedUrl}`;
+      const apiUrl = `https://marden-audit-backend-se9t.vercel.app/api/real-seo-audit?url=${encodedUrl}`;
       
       console.log('Calling API endpoint:', apiUrl);
       
