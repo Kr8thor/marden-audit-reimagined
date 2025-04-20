@@ -10,7 +10,5 @@
   },
   "env": {
     "NPM_FLAGS": "--legacy-peer-deps"
-  },
-  "framework": null,
-  "nodeVersion": "22.x"
+  }
 }
