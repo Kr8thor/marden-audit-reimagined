@@ -31,13 +31,15 @@ This project has been optimized for deployment on Vercel's Hobby plan, which has
 
 The following endpoints are available:
 
-- `GET /api` - API status and health check
+- `GET /api` - API status and basic health check
 - `GET /api/health` - Detailed health check
-- `POST /api/audit/site` - Submit a URL for site audit
-- `POST /api/audit/page` - Submit a URL for page audit
-- `GET /api/job/:id` - Get job status
-- `GET /api/job/:id/results` - Get job results
+- `GET /api/seoaudit` - a dedicated SEO Audit API Endpoint 
+- `POST /api/audit/page` - submit a URL for page audit
+- `POST /api/audit/site` - submit an entire website for SEO analysis
+- `GET /api/job/[id]` - Gets the job information.
+- `GET /api/job/[id]/results` - Gets the job results.
 - `GET /api/worker` - Process jobs from queue (also run on schedule)
+- `POST /api/audit-v2` - audit with the new version of the api
 
 ## Deployment Instructions
 

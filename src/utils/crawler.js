@@ -234,6 +234,10 @@ class Crawler {
    * @returns {boolean} Whether the URL should be crawled
    */
   shouldCrawl(url, depth) {
+    logger.debug(`Checking if should crawl: ${url}`, {
+      visited: this.visitedUrls.has(url),
+      depth,
+    });
     // Don't revisit URLs
     if (this.visitedUrls.has(url)) {
       return false;
@@ -245,6 +249,7 @@ class Crawler {
     }
     
     try {
+      logger.debug(`Parsing URL: ${url}`);
       const parsedUrl = new URL(url);
       
       // Only crawl the same hostname
@@ -263,6 +268,10 @@ class Crawler {
       }
       
       // Check robots.txt rules if available
+      logger.debug(`Checking robots.txt for: ${url}`, {
+        hasRules: !!this.robotsTxtRules,
+        ignoreRobots: this.options.ignoreRobotsTxt,
+      });
       if (this.robotsTxtRules && !this.options.ignoreRobotsTxt) {
         const path = parsedUrl.pathname + parsedUrl.search;
         
@@ -282,9 +291,18 @@ class Crawler {
           return isAllowedByGenericRules;
         }
       }
-      
+
+      logger.debug(`Allowed to crawl: ${url}`);
       return true;
     } catch (error) {
+      logger.warn(`Invalid URL encountered: ${url}`, { error: error.message });
+      return false;
+    } finally {
+      const shouldCrawlResult = this.visitedUrls.has(url) || depth > this.options.depth;
+      logger.debug(`Result of shouldCrawl for ${url}: ${shouldCrawlResult}`, {
+        visited: this.visitedUrls.has(url),
+        depth,
+      });
       logger.warn(`Invalid URL encountered: ${url}`, { error: error.message });
       return false;
     }
@@ -367,11 +385,18 @@ class Crawler {
       const startTime = Date.now();
       
       // Navigate to the page
+      logger.debug(`Navigating to ${url} with options:`, { waitUntil: 'networkidle2', timeout: this.options.timeout });
       const response = await page.goto(url, {
         waitUntil: 'networkidle2',
         timeout: this.options.timeout,
       });
-      
+
+      logger.debug(`Response from page.goto for ${url}:`, {
+        status: response?.status(),
+        ok: response?.ok(),
+        headers: response?.headers(),
+      });
+
       const loadTime = Date.now() - startTime;
       pageData.loadTime = loadTime;
       
@@ -557,6 +582,13 @@ class Crawler {
       
       this.results[pageId] = pageData;
     }
+    
+    logger.info(`Crawled ${url}`, {
+      statusCode: pageData.statusCode,
+      contentType: pageData.contentType,
+      status: pageData.status,
+      error: pageData.error?.message,
+    });
   }
   
   /**
@@ -566,6 +598,7 @@ class Crawler {
    */
   async setupPage(page) {
     await page.setUserAgent(this.options.userAgent);
+    logger.debug(`Setting user agent to: ${this.options.userAgent}`);
     
     // Set viewport size
     await page.setViewport({
@@ -574,6 +607,7 @@ class Crawler {
     });
     
     // Set timeout
+    logger.debug(`Setting default navigation timeout to: ${this.options.timeout}ms`);
     page.setDefaultNavigationTimeout(this.options.timeout);
     
     // Abort requests for unnecessary resources to speed up crawling
@@ -593,6 +627,7 @@ class Crawler {
         req.continue();
       }
     });
+    logger.debug('Page setup complete');
   }
 }
 

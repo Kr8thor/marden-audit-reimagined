@@ -28,7 +28,7 @@ const config = {
     maxPages: parseInt(process.env.MAX_PAGES_PER_CRAWL || '100', 10),
     depth: parseInt(process.env.CRAWL_DEPTH || '3', 10),
     timeout: parseInt(process.env.CRAWL_TIMEOUT || '30000', 10),
-    userAgent: process.env.USER_AGENT || 'Marden SEO Audit Bot',
+    userAgent: process.env.USER_AGENT || 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
   },
   
   // Job queue settings

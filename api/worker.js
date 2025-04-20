@@ -13,8 +13,8 @@ module.exports = async (req, res) => {
     const { redis } = require('./lib/redis.js');
     
     // Get queue configuration
-    const queueName = process.env.QUEUE_NAME || 'marden_audit_queue';
-    const processingQueueName = process.env.PROCESSING_QUEUE_NAME || 'marden_audit_processing';
+    const queueName = process.env.QUEUE_NAME || 'audit:queue';
+    const processingQueueName = process.env.PROCESSING_QUEUE_NAME || 'audit:processing';
     const jobPrefix = process.env.JOB_PREFIX || 'job:';
     
     console.log(`Worker started - checking queue: ${queueName}`);
