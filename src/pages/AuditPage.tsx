@@ -26,7 +26,7 @@ const AuditPage: React.FC = () => {
         console.log("Trying direct SEO analysis first");
         const analysisResult = await apiClient.quickSeoAnalysis(url);
         
-        // If we have real data from direct analysis, return it immediately
+        // If we have data from direct analysis, return it immediately
         if (analysisResult && !analysisResult.error) {
           console.log("Direct SEO analysis successful:", analysisResult);
           return { 
@@ -86,7 +86,23 @@ const AuditPage: React.FC = () => {
       // Handle direct analysis results
       if (submitAuditQuery.data.directResults) {
         console.log("Setting direct analysis results");
-        setResults(submitAuditQuery.data.directResults);
+        
+        // Extract the relevant properties from the response
+        const analysisData = submitAuditQuery.data.directResults;
+        
+        // Check if the data has expected properties, otherwise reconstruct them
+        const processedResults = {
+          ...analysisData,
+          score: analysisData.score != null ? analysisData.score : 0,
+          issuesFound: analysisData.issuesFound != null ? analysisData.issuesFound : 0,
+          opportunities: analysisData.opportunities != null ? analysisData.opportunities : 0,
+          pageAnalysis: analysisData.pageAnalysis || {},
+          siteAnalysis: analysisData.siteAnalysis || null,
+          cached: analysisData.cached || false,
+          cachedAt: analysisData.cachedAt
+        };
+        
+        setResults(processedResults);
         setIsLoading(false);
         toast('Analysis completed', {
           description: 'Results are ready to view',
@@ -99,7 +115,16 @@ const AuditPage: React.FC = () => {
       if (submitAuditQuery.data.cached || submitAuditQuery.data.data) {
         console.log("Setting cached results", submitAuditQuery.data);
         const resultData = submitAuditQuery.data.data || submitAuditQuery.data.results || submitAuditQuery.data;
-        setResults(resultData);
+        
+        setResults({
+          ...resultData,
+          score: resultData.score != null ? resultData.score : 0,
+          issuesFound: resultData.issuesFound != null ? resultData.issuesFound : 0,
+          opportunities: resultData.opportunities != null ? resultData.opportunities : 0,
+          cached: true,
+          cachedAt: submitAuditQuery.data.cachedAt || new Date().toISOString()
+        });
+        
         setIsLoading(false);
         toast('Retrieved cached results', {
           description: 'Showing results from cache',
@@ -120,9 +145,14 @@ const AuditPage: React.FC = () => {
       }
       
       // If we have data but no jobId or cached flag, treat it as direct results
-      if (submitAuditQuery.data.pageAnalysis || submitAuditQuery.data.score) {
+      if (submitAuditQuery.data.pageAnalysis || submitAuditQuery.data.score != null) {
         console.log("Setting direct results from submit response");
-        setResults(submitAuditQuery.data);
+        setResults({
+          ...submitAuditQuery.data,
+          score: submitAuditQuery.data.score != null ? submitAuditQuery.data.score : 0,
+          issuesFound: submitAuditQuery.data.issuesFound != null ? submitAuditQuery.data.issuesFound : 0,
+          opportunities: submitAuditQuery.data.opportunities != null ? submitAuditQuery.data.opportunities : 0
+        });
         setIsLoading(false);
         toast('Analysis completed', {
           description: 'Results are ready to view',
@@ -153,7 +183,15 @@ const AuditPage: React.FC = () => {
       console.log("Job results received:", jobResultsQuery.data);
       
       const resultData = jobResultsQuery.data.results || jobResultsQuery.data;
-      setResults(resultData);
+      
+      setResults({
+        ...resultData,
+        score: resultData.score != null ? resultData.score : 0,
+        issuesFound: resultData.issuesFound != null ? resultData.issuesFound : 0,
+        opportunities: resultData.opportunities != null ? resultData.opportunities : 0,
+        cached: false
+      });
+      
       setIsLoading(false);
       toast('Audit completed', {
         description: 'Results are ready to view',
@@ -213,8 +251,8 @@ const AuditPage: React.FC = () => {
         progress = 95;
       }
     } else if (submitAuditQuery.isLoading) {
-      statusText = 'Submitting URL...';
-      progress = 10;
+      statusText = 'Analyzing URL...';
+      progress = 50;
     }
     
     return (

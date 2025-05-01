@@ -15,21 +15,21 @@ const AuditResults: React.FC<AuditResultsProps> = ({
   pageAnalysis, 
   siteAnalysis, 
   url, 
-  score = 0,
-  issuesFound = 0,
-  opportunities = 0,
+  score,
+  issuesFound,
+  opportunities,
   cached = false,
   cachedAt
 }) => {
   // Calculate derived metrics from real data
-  const actualScore = score || (pageAnalysis?.score || 0);
+  const actualScore = score ?? (pageAnalysis?.score || 0);
   
   // Extract issues from pageAnalysis if available
   const topIssues = React.useMemo(() => {
     const issues = [];
     
     // Add missing title issue if applicable
-    if (pageAnalysis?.title?.text === '') {
+    if (!pageAnalysis?.title?.text) {
       issues.push({
         severity: 'critical',
         description: 'Missing page title'
@@ -47,7 +47,7 @@ const AuditResults: React.FC<AuditResultsProps> = ({
     }
     
     // Add missing meta description issue if applicable
-    if (pageAnalysis?.metaDescription?.text === '') {
+    if (!pageAnalysis?.metaDescription?.text) {
       issues.push({
         severity: 'critical',
         description: 'Missing meta description'
@@ -73,7 +73,7 @@ const AuditResults: React.FC<AuditResultsProps> = ({
     } else if (pageAnalysis?.headings?.h1Count > 1) {
       issues.push({
         severity: 'warning',
-        description: `Multiple H1 headings (${pageAnalysis.headings.h1Count})`
+        description: `Multiple H1 headings (${pageAnalysis?.headings?.h1Count})`
       });
     }
     
@@ -81,6 +81,22 @@ const AuditResults: React.FC<AuditResultsProps> = ({
       issues.push({
         severity: 'info',
         description: 'No H2 headings found'
+      });
+    }
+    
+    // Add image alt text issues
+    if (pageAnalysis?.images?.withoutAltCount > 0) {
+      issues.push({
+        severity: 'warning',
+        description: `${pageAnalysis.images.withoutAltCount} images missing alt text`
+      });
+    }
+    
+    // Add content length issue
+    if (pageAnalysis?.contentLength < 300) {
+      issues.push({
+        severity: 'warning',
+        description: 'Page content is too short'
       });
     }
     
@@ -94,9 +110,10 @@ const AuditResults: React.FC<AuditResultsProps> = ({
   }, [pageAnalysis]);
   
   // Calculate actual issues count
-  const actualIssuesFound = issuesFound || topIssues.length;
+  const actualIssuesFound = issuesFound ?? topIssues.length;
+  const actualOpportunities = opportunities ?? Math.min(actualIssuesFound, 5);
   
-  // Performance metrics - use defaults for now, will be populated with real data later
+  // Performance metrics - use defaults or data from analysis
   const performanceMetrics = {
     lcp: {
       value: 2.5,
@@ -148,7 +165,7 @@ const AuditResults: React.FC<AuditResultsProps> = ({
         </div>
         <div className="bg-white/5 rounded-lg p-4 border border-white/10">
           <div className="text-sm text-muted-foreground mb-1">Opportunities</div>
-          <div className="text-2xl font-bold text-green-400">{opportunities || 0}</div>
+          <div className="text-2xl font-bold text-green-400">{actualOpportunities}</div>
         </div>
       </div>
       
@@ -292,6 +309,9 @@ const AuditResults: React.FC<AuditResultsProps> = ({
                       {text}
                     </p>
                   ))}
+                  {(!pageAnalysis.headings?.h1Texts || pageAnalysis.headings.h1Texts.length === 0) && (
+                    <p className="text-xs text-white/60 italic">No H1 headings found</p>
+                  )}
                 </div>
                 
                 <div>
@@ -310,9 +330,60 @@ const AuditResults: React.FC<AuditResultsProps> = ({
                       {text}
                     </p>
                   ))}
+                  {(!pageAnalysis.headings?.h2Texts || pageAnalysis.headings.h2Texts.length === 0) && (
+                    <p className="text-xs text-white/60 italic">No H2 headings found</p>
+                  )}
                 </div>
               </div>
             </div>
+            
+            {pageAnalysis.links && (
+              <div>
+                <h4 className="text-xs text-muted-foreground mb-1">Links</h4>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-white/5 p-2 rounded">
+                    <div className="text-xs mb-1">Internal</div>
+                    <div className="text-sm font-medium">{pageAnalysis.links.internalCount || 0}</div>
+                  </div>
+                  <div className="bg-white/5 p-2 rounded">
+                    <div className="text-xs mb-1">External</div>
+                    <div className="text-sm font-medium">{pageAnalysis.links.externalCount || 0}</div>
+                  </div>
+                  <div className="bg-white/5 p-2 rounded">
+                    <div className="text-xs mb-1">Total</div>
+                    <div className="text-sm font-medium">{pageAnalysis.links.totalCount || 0}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {pageAnalysis.images && (
+              <div>
+                <h4 className="text-xs text-muted-foreground mb-1">Images</h4>
+                <div className="bg-white/5 p-2 rounded">
+                  <div className="flex justify-between">
+                    <span>Images missing alt text</span>
+                    <span className={pageAnalysis.images.withoutAltCount === 0 ? "text-green-400" : "text-red-400"}>
+                      {pageAnalysis.images.withoutAltCount || 0}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {pageAnalysis.contentLength !== undefined && (
+              <div>
+                <h4 className="text-xs text-muted-foreground mb-1">Content</h4>
+                <div className="bg-white/5 p-2 rounded">
+                  <div className="flex justify-between">
+                    <span>Content Length</span>
+                    <span className={pageAnalysis.contentLength >= 300 ? "text-green-400" : "text-yellow-400"}>
+                      {pageAnalysis.contentLength.toLocaleString()} characters
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
