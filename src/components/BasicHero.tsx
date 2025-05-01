@@ -5,7 +5,7 @@ import { ChevronRight, Play, Search, AlertTriangle } from 'lucide-react';
 import { Dialog, DialogContent, DialogTrigger } from './ui/dialog';
 import AnimatedButton from './AnimatedButton';
 import CircularProgress from './CircularProgress';
-import { useBasicAudit } from '../hooks/basic-audit';
+import { useAuditClient } from '../hooks/useAuditClient';
 import AuditResults from './audit/AuditResults';
 import AuditError from './audit/AuditError';
 
@@ -17,8 +17,8 @@ const BasicHero = () => {
   const [url, setUrl] = useState('');
   const [urlError, setUrlError] = useState<string | null>(null);
   
-  // Use our simple audit hook
-  const { isLoading, progress, result, error, runAudit } = useBasicAudit();
+  // Use our improved audit hook
+  const { isLoading, progress, result, error, runAudit } = useAuditClient();
   
   // Handle URL validation
   const validateUrl = (input: string) => {

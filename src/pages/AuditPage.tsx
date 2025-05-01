@@ -77,30 +77,80 @@ const AuditPage: React.FC = () => {
     retry: 2
   });
   
-  // Handle different states and responses
+  // Handle different states and responses with improved data normalization
   useEffect(() => {
     // Handle direct SEO analysis or submit response
     if (submitAuditQuery.data && !results) {
       console.log("Submit query data received:", submitAuditQuery.data);
       
+      // Process and normalize result data
+      const processResult = (sourceData: any) => {
+        // Try to locate the actual result data through multiple paths
+        let resultData = sourceData;
+        
+        // If response contains directResults, use that
+        if (sourceData.directResults) {
+          resultData = sourceData.directResults;
+        } 
+        // If response contains data property, use that
+        else if (sourceData.data) {
+          resultData = sourceData.data;
+        }
+        // If response contains results property, use that
+        else if (sourceData.results) {
+          resultData = sourceData.results;
+        }
+        
+        // Extract categories and issues if available (V2 API format)
+        const categories = resultData.categories || {};
+        
+        // Count issues for display
+        const issuesCount = 
+          (categories.metadata?.issues?.length || 0) +
+          (categories.content?.issues?.length || 0) +
+          (categories.technical?.issues?.length || 0) +
+          (categories.userExperience?.issues?.length || 0);
+        
+        // Convert v2 data format to pageAnalysis format for display compatibility
+        const pageData = resultData.pageData || {};
+        const pageAnalysis = resultData.pageAnalysis || {
+          title: pageData.title || { text: '', length: 0 },
+          metaDescription: pageData.metaDescription || { text: '', length: 0 },
+          headings: pageData.headings || { h1Count: 0, h1Texts: [], h2Count: 0, h2Texts: [] },
+          links: pageData.links || { internalCount: 0, externalCount: 0, totalCount: 0 },
+          images: pageData.images || { withoutAltCount: 0, total: 0 },
+          contentLength: pageData.content?.contentLength || 0
+        };
+        
+        // For V2 API, use metadata from technical section if available
+        if (pageData.technical) {
+          pageAnalysis.canonical = pageData.technical.canonicalUrl || '';
+        }
+        
+        // Properly normalize the score
+        const score = resultData.score != null ? 
+          resultData.score : 
+          categories.metadata?.score !== undefined ? 
+            (categories.metadata.score + categories.content?.score + categories.technical?.score + categories.userExperience?.score) / 4 : 
+            0;
+        
+        return {
+          ...resultData,
+          score: Math.round(score),
+          issuesFound: resultData.issuesFound != null ? resultData.issuesFound : issuesCount,
+          opportunities: resultData.opportunities != null ? resultData.opportunities : Math.ceil(issuesCount / 2),
+          pageAnalysis,
+          siteAnalysis: resultData.siteAnalysis || null,
+          cached: sourceData.cached || resultData.cached || false,
+          cachedAt: sourceData.cachedAt || resultData.cachedAt || new Date().toISOString(),
+          categories // Include categories if available (V2 API)
+        };
+      };
+      
       // Handle direct analysis results
       if (submitAuditQuery.data.directResults) {
         console.log("Setting direct analysis results");
-        
-        // Extract the relevant properties from the response
-        const analysisData = submitAuditQuery.data.directResults;
-        
-        // Check if the data has expected properties, otherwise reconstruct them
-        const processedResults = {
-          ...analysisData,
-          score: analysisData.score != null ? analysisData.score : 0,
-          issuesFound: analysisData.issuesFound != null ? analysisData.issuesFound : 0,
-          opportunities: analysisData.opportunities != null ? analysisData.opportunities : 0,
-          pageAnalysis: analysisData.pageAnalysis || {},
-          siteAnalysis: analysisData.siteAnalysis || null,
-          cached: analysisData.cached || false,
-          cachedAt: analysisData.cachedAt
-        };
+        const processedResults = processResult(submitAuditQuery.data);
         
         setResults(processedResults);
         setIsLoading(false);
@@ -114,17 +164,9 @@ const AuditPage: React.FC = () => {
       // Handle cached result
       if (submitAuditQuery.data.cached || submitAuditQuery.data.data) {
         console.log("Setting cached results", submitAuditQuery.data);
-        const resultData = submitAuditQuery.data.data || submitAuditQuery.data.results || submitAuditQuery.data;
+        const processedResults = processResult(submitAuditQuery.data);
         
-        setResults({
-          ...resultData,
-          score: resultData.score != null ? resultData.score : 0,
-          issuesFound: resultData.issuesFound != null ? resultData.issuesFound : 0,
-          opportunities: resultData.opportunities != null ? resultData.opportunities : 0,
-          cached: true,
-          cachedAt: submitAuditQuery.data.cachedAt || new Date().toISOString()
-        });
-        
+        setResults(processedResults);
         setIsLoading(false);
         toast('Retrieved cached results', {
           description: 'Showing results from cache',
@@ -145,14 +187,14 @@ const AuditPage: React.FC = () => {
       }
       
       // If we have data but no jobId or cached flag, treat it as direct results
-      if (submitAuditQuery.data.pageAnalysis || submitAuditQuery.data.score != null) {
+      if (submitAuditQuery.data.pageAnalysis || 
+          submitAuditQuery.data.pageData || 
+          submitAuditQuery.data.score != null ||
+          submitAuditQuery.data.categories) {
         console.log("Setting direct results from submit response");
-        setResults({
-          ...submitAuditQuery.data,
-          score: submitAuditQuery.data.score != null ? submitAuditQuery.data.score : 0,
-          issuesFound: submitAuditQuery.data.issuesFound != null ? submitAuditQuery.data.issuesFound : 0,
-          opportunities: submitAuditQuery.data.opportunities != null ? submitAuditQuery.data.opportunities : 0
-        });
+        const processedResults = processResult(submitAuditQuery.data);
+        
+        setResults(processedResults);
         setIsLoading(false);
         toast('Analysis completed', {
           description: 'Results are ready to view',
@@ -168,7 +210,7 @@ const AuditPage: React.FC = () => {
       const status = jobStatusQuery.data.job.status;
       
       if (status === 'failed') {
-        setError('Audit failed: ' + (jobStatusQuery.data.job.error || 'Unknown error'));
+        setError(`Audit failed: ${jobStatusQuery.data.job.error || 'Unknown error'}`);
         setIsLoading(false);
       } else if (status === 'completed' && !results) {
         // Job completed, get results if not already getting them
@@ -182,16 +224,60 @@ const AuditPage: React.FC = () => {
     if (jobResultsQuery.data && !results) {
       console.log("Job results received:", jobResultsQuery.data);
       
-      const resultData = jobResultsQuery.data.results || jobResultsQuery.data;
+      // Process result data to handle differences in API response format
+      const processResult = (sourceData: any) => {
+        // Try to locate the actual result data through multiple paths
+        let resultData = sourceData;
+        
+        // If response contains results property, use that
+        if (sourceData.results) {
+          resultData = sourceData.results;
+        }
+        
+        // Extract categories and issues if available (V2 API format)
+        const categories = resultData.categories || {};
+        
+        // Count issues for display
+        const issuesCount = 
+          (categories.metadata?.issues?.length || 0) +
+          (categories.content?.issues?.length || 0) +
+          (categories.technical?.issues?.length || 0) +
+          (categories.userExperience?.issues?.length || 0);
+        
+        // Convert v2 data format to pageAnalysis format for display compatibility
+        const pageData = resultData.pageData || {};
+        const pageAnalysis = resultData.pageAnalysis || {
+          title: pageData.title || { text: '', length: 0 },
+          metaDescription: pageData.metaDescription || { text: '', length: 0 },
+          headings: pageData.headings || { h1Count: 0, h1Texts: [], h2Count: 0, h2Texts: [] },
+          links: pageData.links || { internalCount: 0, externalCount: 0, totalCount: 0 },
+          images: pageData.images || { withoutAltCount: 0, total: 0 },
+          contentLength: pageData.content?.contentLength || 0
+        };
+        
+        // Properly normalize the score
+        const score = resultData.score != null ? 
+          resultData.score : 
+          categories.metadata?.score !== undefined ? 
+            (categories.metadata.score + categories.content?.score + categories.technical?.score + categories.userExperience?.score) / 4 : 
+            0;
+        
+        return {
+          ...resultData,
+          score: Math.round(score),
+          issuesFound: resultData.issuesFound != null ? resultData.issuesFound : issuesCount,
+          opportunities: resultData.opportunities != null ? resultData.opportunities : Math.ceil(issuesCount / 2),
+          pageAnalysis,
+          siteAnalysis: resultData.siteAnalysis || null,
+          cached: sourceData.cached || resultData.cached || false,
+          cachedAt: sourceData.cachedAt || resultData.cachedAt || new Date().toISOString(),
+          categories // Include categories if available (V2 API)
+        };
+      };
       
-      setResults({
-        ...resultData,
-        score: resultData.score != null ? resultData.score : 0,
-        issuesFound: resultData.issuesFound != null ? resultData.issuesFound : 0,
-        opportunities: resultData.opportunities != null ? resultData.opportunities : 0,
-        cached: false
-      });
+      const processedResults = processResult(jobResultsQuery.data);
       
+      setResults(processedResults);
       setIsLoading(false);
       toast('Audit completed', {
         description: 'Results are ready to view',
@@ -199,18 +285,30 @@ const AuditPage: React.FC = () => {
       });
     }
     
-    // Handle errors
+    // Handle errors with improved error reporting
     if (submitAuditQuery.error && !results && isLoading) {
       console.error("Submit error:", submitAuditQuery.error);
-      setError(`Failed to submit audit: ${(submitAuditQuery.error as Error).message || 'Unknown error'}`);
+      
+      // Extract useful error message from the error object
+      const errorMessage = getErrorMessage(submitAuditQuery.error);
+      
+      setError(`Failed to submit audit: ${errorMessage}`);
       setIsLoading(false);
     } else if (jobStatusQuery.error && !results && isLoading) {
       console.error("Status error:", jobStatusQuery.error);
-      setError(`Failed to check job status: ${(jobStatusQuery.error as Error).message || 'Unknown error'}`);
+      
+      // Extract useful error message from the error object
+      const errorMessage = getErrorMessage(jobStatusQuery.error);
+      
+      setError(`Failed to check job status: ${errorMessage}`);
       setIsLoading(false);
     } else if (jobResultsQuery.error && !results && isLoading) {
       console.error("Results error:", jobResultsQuery.error);
-      setError(`Failed to get results: ${(jobResultsQuery.error as Error).message || 'Unknown error'}`);
+      
+      // Extract useful error message from the error object
+      const errorMessage = getErrorMessage(jobResultsQuery.error);
+      
+      setError(`Failed to get results: ${errorMessage}`);
       setIsLoading(false);
     }
   }, [
@@ -219,6 +317,27 @@ const AuditPage: React.FC = () => {
     jobResultsQuery.data, jobResultsQuery.error,
     jobId, results, isLoading
   ]);
+  
+  // Helper function to extract meaningful error messages
+  const getErrorMessage = (error: any): string => {
+    if (typeof error === 'string') {
+      return error;
+    }
+    
+    if (error instanceof Error) {
+      return error.message || 'Unknown error';
+    }
+    
+    if (error.response?.data?.message) {
+      return error.response.data.message;
+    }
+    
+    if (error.message) {
+      return error.message;
+    }
+    
+    return 'Unknown error occurred';
+  };
   
   const handleTryAgain = () => {
     setIsLoading(true);
@@ -293,6 +412,7 @@ const AuditPage: React.FC = () => {
           opportunities={results?.opportunities}
           cached={results?.cached}
           cachedAt={results?.cachedAt}
+          categories={results?.categories}
         />
         <div className="mt-8 border-t border-white/10 pt-4 flex justify-between">
           <button 

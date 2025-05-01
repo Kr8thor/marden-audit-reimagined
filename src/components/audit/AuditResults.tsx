@@ -9,6 +9,12 @@ interface AuditResultsProps {
   opportunities?: number;
   cached?: boolean;
   cachedAt?: string;
+  categories?: {
+    metadata?: { score: number; issues: Array<any> };
+    content?: { score: number; issues: Array<any> };
+    technical?: { score: number; issues: Array<any> };
+    userExperience?: { score: number; issues: Array<any> };
+  };
 }
 
 const AuditResults: React.FC<AuditResultsProps> = ({ 
@@ -19,14 +25,54 @@ const AuditResults: React.FC<AuditResultsProps> = ({
   issuesFound,
   opportunities,
   cached = false,
-  cachedAt
+  cachedAt,
+  categories
 }) => {
   // Calculate derived metrics from real data
   const actualScore = score ?? (pageAnalysis?.score || 0);
   
-  // Extract issues from pageAnalysis if available
+  // Extract issues from pageAnalysis or categories if available
   const topIssues = React.useMemo(() => {
     const issues = [];
+    
+    // First check if we have categorized issues from V2 API
+    if (categories) {
+      // Collect issues from all categories, prioritizing critical and warning issues
+      const allCategoryIssues = [
+        ...(categories.metadata?.issues || []),
+        ...(categories.content?.issues || []),
+        ...(categories.technical?.issues || []),
+        ...(categories.userExperience?.issues || [])
+      ];
+      
+      // Map API severity to UI severity
+      const mapSeverity = (apiSeverity: string) => {
+        if (apiSeverity === 'critical') return 'critical';
+        if (apiSeverity === 'warning') return 'warning';
+        if (apiSeverity === 'info') return 'info';
+        return 'info';
+      };
+      
+      // Sort by severity (critical first, then warning, then info)
+      const sortedIssues = allCategoryIssues.sort((a, b) => {
+        const severityOrder = { critical: 0, warning: 1, info: 2 };
+        return (severityOrder[a.severity as keyof typeof severityOrder] || 3) - 
+               (severityOrder[b.severity as keyof typeof severityOrder] || 3);
+      });
+      
+      // Take top 5 issues
+      const topCategoryIssues = sortedIssues.slice(0, 5);
+      
+      // Map to our display format
+      if (topCategoryIssues.length > 0) {
+        return topCategoryIssues.map(issue => ({
+          severity: mapSeverity(issue.severity),
+          description: issue.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+        }));
+      }
+    }
+    
+    // Fallback to extracting issues from pageAnalysis if no V2 API data
     
     // Add missing title issue if applicable
     if (!pageAnalysis?.title?.text) {
@@ -107,7 +153,7 @@ const AuditResults: React.FC<AuditResultsProps> = ({
         description: 'Analysis complete - see detailed results below'
       }
     ];
-  }, [pageAnalysis]);
+  }, [pageAnalysis, categories]);
   
   // Calculate actual issues count
   const actualIssuesFound = issuesFound ?? topIssues.length;
