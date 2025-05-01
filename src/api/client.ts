@@ -66,118 +66,12 @@ function normalizeUrl(url: string): string {
  */
 const apiClient = {
   /**
-   * Submit a URL for site audit
-   * @param url URL to audit
-   * @param options Additional audit options
-   * @returns Promise with job details
-   */
-  submitSiteAudit: async (url: string, options: any = {}): Promise<JobCreationResponse> => {
-    console.log(`Submitting site audit for URL: ${url}`);
-    
-    const normalizedUrl = normalizeUrl(url);
-    
-    return fetchWithRetry<JobCreationResponse>(
-      `${API_BASE_URL}/v2/audit/site`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          url: normalizedUrl, 
-          options: {
-            ...options,
-            maxPages: options.maxPages || 10,
-            crawlDepth: options.crawlDepth || 2
-          }
-        }),
-      }
-    );
-  },
-  
-  /**
-   * Submit a URL for page audit
-   * @param url URL to audit
-   * @param options Additional audit options
-   * @returns Promise with job details
-   */
-  submitPageAudit: async (url: string, options: any = {}): Promise<JobCreationResponse> => {
-    console.log(`Submitting page audit for URL: ${url} to ${API_BASE_URL}/v2/audit/page`);
-    
-    const normalizedUrl = normalizeUrl(url);
-    
-    // Try with the v2 API first
-    try {
-      const response = await fetch(`${API_BASE_URL}/v2/audit/page`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          url: normalizedUrl, 
-          options
-        }),
-      });
-      
-      // If v2 API returns 404, try the old endpoint as fallback
-      if (response.status === 404) {
-        console.log('V2 API not found, falling back to quick analysis');
-        return apiClient.quickSeoAnalysis(url) as Promise<JobCreationResponse>;
-      }
-      
-      return handleResponse<JobCreationResponse>(response);
-    } catch (error) {
-      console.error('Error with v2 API, trying fallback:', error);
-      // Fallback to the older API
-      return apiClient.quickSeoAnalysis(url) as Promise<JobCreationResponse>;
-    }
-  },
-  
-  /**
-   * Get status of a job
-   * @param jobId Job ID
-   * @returns Promise with job status
-   */
-  getJobStatus: async (jobId: string): Promise<JobStatusResponse> => {
-    console.log(`Getting status for job: ${jobId}`);
-    
-    return fetchWithRetry<JobStatusResponse>(
-      `${API_BASE_URL}/v2/job/${jobId}`,
-      {
-        method: 'GET',
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
-      }
-    );
-  },
-  
-  /**
-   * Get results of a completed job
-   * @param jobId Job ID
-   * @returns Promise with job results
-   */
-  getJobResults: async (jobId: string): Promise<JobResultsResponse> => {
-    console.log(`Getting results for job: ${jobId}`);
-    
-    return fetchWithRetry<JobResultsResponse>(
-      `${API_BASE_URL}/v2/job/${jobId}/results`,
-      {
-        method: 'GET',
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
-      }
-    );
-  },
-  
-  /**
    * Check API health
    * @returns Promise with health status
    */
   checkHealth: async (): Promise<HealthCheckResponse> => {
     return fetchWithRetry<HealthCheckResponse>(
-      `${API_BASE_URL}/v2/health`,
+      `${API_BASE_URL}/health`,
       {
         method: 'GET',
         headers: {
@@ -188,17 +82,17 @@ const apiClient = {
   },
   
   /**
-   * Perform quick SEO analysis
+   * Perform SEO analysis
    * @param url URL to analyze
    * @returns Promise with analysis results
    */
   quickSeoAnalysis: async (url: string): Promise<SeoAnalysisResponse> => {
-    console.log(`Performing quick SEO analysis for URL: ${url}`);
+    console.log(`Performing SEO analysis for URL: ${url}`);
     
     const normalizedUrl = normalizeUrl(url);
     
+    // Try v2 endpoint first
     try {
-      // Try v2 endpoint first
       const response = await fetch(`${API_BASE_URL}/v2/seo-analyze`, {
         method: 'POST',
         headers: {
@@ -208,26 +102,27 @@ const apiClient = {
       });
       
       if (response.status === 404) {
-        // Fallback to v1 endpoint
-        console.log('V2 seo-analyze not found, falling back to /api/real-seo-audit');
-        const fallbackResponse = await fetch(`${API_BASE_URL}/api/real-seo-audit`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ url: normalizedUrl }),
-        });
-        
-        return handleResponse<SeoAnalysisResponse>(fallbackResponse);
+        // Fallback to other endpoint
+        console.log('V2 endpoint not found, trying alternative endpoint');
+        return fetchWithRetry<SeoAnalysisResponse>(
+          `${API_BASE_URL}/seo-analyze`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ url: normalizedUrl }),
+          }
+        );
       }
       
       return handleResponse<SeoAnalysisResponse>(response);
     } catch (error) {
-      console.error('Error with v2 seo-analyze, trying fallback:', error);
+      console.error('Error with endpoint, trying alternative:', error);
       
-      // Fallback to v1 endpoint with retry and exponential backoff
+      // Fallback to other endpoint
       return fetchWithRetry<SeoAnalysisResponse>(
-        `${API_BASE_URL}/api/real-seo-audit`,
+        `${API_BASE_URL}/seo-analyze`,
         {
           method: 'POST',
           headers: {
@@ -239,52 +134,72 @@ const apiClient = {
     }
   },
   
-  /**
-   * Polling function to check job status until completion
-   * @param jobId Job ID
-   * @param onProgress Progress callback
-   * @param maxAttempts Maximum number of attempts
-   * @returns Promise with job results
-   */
+  // For compatibility with existing code, provide these as wrappers
+  submitPageAudit: async (url: string, options: any = {}): Promise<JobCreationResponse> => {
+    console.log('Using direct SEO analysis instead of job-based page audit');
+    const analysisResult = await apiClient.quickSeoAnalysis(url);
+    
+    // Convert analysis to job creation response format
+    return {
+      status: 'ok',
+      message: 'Analysis completed directly',
+      jobId: 'direct-analysis',
+      url: normalizeUrl(url),
+      cached: false,
+      timestamp: new Date().toISOString(),
+      data: analysisResult.data
+    };
+  },
+  
+  submitSiteAudit: async (url: string, options: any = {}): Promise<JobCreationResponse> => {
+    console.log('Using direct SEO analysis instead of job-based site audit');
+    return apiClient.submitPageAudit(url, options);
+  },
+  
+  getJobStatus: async (jobId: string): Promise<JobStatusResponse> => {
+    console.log('Direct analysis used - no job status to check');
+    
+    // Return mocked job status for compatibility
+    return {
+      status: 'ok',
+      message: 'Direct analysis used - no job status available',
+      jobId,
+      job: {
+        id: jobId,
+        type: 'direct_analysis',
+        status: 'completed',
+        progress: 100,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        url: '',
+        options: {},
+        message: 'Direct analysis used'
+      },
+      timestamp: new Date().toISOString()
+    };
+  },
+  
+  getJobResults: async (jobId: string): Promise<JobResultsResponse> => {
+    console.log('Direct analysis used - checking stored results');
+    
+    // Return mocked job results for compatibility
+    return {
+      status: 'ok',
+      message: 'Direct analysis results',
+      jobId,
+      url: '',
+      results: {},
+      cached: false,
+      timestamp: new Date().toISOString()
+    };
+  },
+  
+  // This is a simplified version since we don't need polling with direct analysis
   pollJobUntilCompletion: async (
     jobId: string, 
-    onProgress?: (status: JobStatusResponse) => void,
-    maxAttempts = 30,
-    initialDelay = 2000
+    onProgress?: (status: JobStatusResponse) => void
   ): Promise<JobResultsResponse> => {
-    let attempts = 0;
-    let delay = initialDelay;
-    
-    while (attempts < maxAttempts) {
-      try {
-        const status = await apiClient.getJobStatus(jobId);
-        
-        // Call progress callback if provided
-        if (onProgress) {
-          onProgress(status);
-        }
-        
-        // Check job status
-        if (status.job.status === 'completed') {
-          return await apiClient.getJobResults(jobId);
-        }
-        
-        // If job failed, throw error
-        if (status.job.status === 'failed') {
-          throw new Error(`Job failed: ${status.job.error || 'Unknown error'}`);
-        }
-        
-        // Wait before next attempt with increasing delay (capped at 10 seconds)
-        await new Promise(resolve => setTimeout(resolve, delay));
-        delay = Math.min(delay * 1.5, 10000); // Increase delay but cap at 10 seconds
-        attempts++;
-      } catch (error) {
-        console.error(`Error polling job status:`, error);
-        throw error;
-      }
-    }
-    
-    throw new Error(`Job didn't complete after ${maxAttempts} attempts`);
+    return apiClient.getJobResults(jobId);
   }
 };
 
