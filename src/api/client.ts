@@ -16,8 +16,14 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
  */
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `Error: ${response.status} ${response.statusText}`);
+    console.error('API Error Response:', response.status, response.statusText);
+    try {
+      const errorData = await response.json();
+      console.error('Error Data:', errorData);
+      throw new Error(errorData.message || `Error: ${response.status} ${response.statusText}`);
+    } catch (e) {
+      throw new Error(`Error: ${response.status} ${response.statusText}`);
+    }
   }
   
   return response.json() as Promise<T>;
@@ -33,9 +39,11 @@ async function fetchWithRetry<T>(
   backoff = 300
 ): Promise<T> {
   try {
+    console.log(`Fetching: ${url}`);
     const response = await fetch(url, options);
     return await handleResponse<T>(response);
   } catch (error) {
+    console.error(`Fetch error (retries left: ${retries}):`, error);
     if (retries <= 0) {
       throw error;
     }
@@ -85,22 +93,35 @@ const apiClient = {
    * @returns Promise with job details
    */
   submitPageAudit: async (url: string, options = {}): Promise<JobCreationResponse> => {
-    console.log(`Submitting page audit for URL: ${url}`);
+    console.log(`Submitting page audit for URL: ${url} to ${API_BASE_URL}/v2/audit/page`);
     
     const normalizedUrl = url.startsWith('http') ? url : `https://${url}`;
     
-    const response = await fetch(`${API_BASE_URL}/v2/audit/page`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ 
-        url: normalizedUrl, 
-        options
-      }),
-    });
-    
-    return handleResponse<JobCreationResponse>(response);
+    // First try with the v2 API
+    try {
+      const response = await fetch(`${API_BASE_URL}/v2/audit/page`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          url: normalizedUrl, 
+          options
+        }),
+      });
+      
+      // If v2 API returns 404, try the real-seo-audit endpoint as fallback
+      if (response.status === 404) {
+        console.log('V2 API not found, falling back to /api/real-seo-audit');
+        return apiClient.quickSeoAnalysis(url);
+      }
+      
+      return handleResponse<JobCreationResponse>(response);
+    } catch (error) {
+      console.error('Error with v2 API, trying fallback:', error);
+      // Fallback to the older API
+      return apiClient.quickSeoAnalysis(url);
+    }
   },
   
   /**
@@ -167,15 +188,45 @@ const apiClient = {
     
     const normalizedUrl = url.startsWith('http') ? url : `https://${url}`;
     
-    const response = await fetch(`${API_BASE_URL}/v2/seo-analyze`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ url: normalizedUrl }),
-    });
-    
-    return handleResponse<any>(response);
+    try {
+      // Try v2 endpoint first
+      const response = await fetch(`${API_BASE_URL}/v2/seo-analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: normalizedUrl }),
+      });
+      
+      if (response.status === 404) {
+        // Fallback to v1 endpoint
+        console.log('V2 seo-analyze not found, falling back to /api/real-seo-audit');
+        const fallbackResponse = await fetch(`${API_BASE_URL}/api/real-seo-audit`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ url: normalizedUrl }),
+        });
+        
+        return handleResponse<any>(fallbackResponse);
+      }
+      
+      return handleResponse<any>(response);
+    } catch (error) {
+      console.error('Error with v2 seo-analyze, trying fallback:', error);
+      
+      // Fallback to v1 endpoint
+      const fallbackResponse = await fetch(`${API_BASE_URL}/api/real-seo-audit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: normalizedUrl }),
+      });
+      
+      return handleResponse<any>(fallbackResponse);
+    }
   }
 };
 
