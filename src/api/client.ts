@@ -143,96 +143,6 @@ const apiClient = {
   },
   
   /**
-   * Perform SEO analysis with comprehensive fallback strategy
-   * @param url URL to analyze
-   * @returns Promise with analysis results
-   */
-  quickSeoAnalysis: async (url: string): Promise<SeoAnalysisResponse> => {
-    console.log(`Performing SEO analysis for URL: ${url}`);
-    
-    if (!url || url.trim() === '') {
-      throw new Error('URL is required for analysis');
-    }
-    
-    const normalizedUrl = normalizeUrl(url);
-    
-    if (!isValidUrl(normalizedUrl)) {
-      throw new Error('Invalid URL format');
-    }
-    
-    // Add timestamp to prevent caching issues
-    const timestamp = new Date().getTime();
-    
-    // Try each endpoint in sequence with proper fallback handling
-    const endpoints = [
-      `${API_BASE_URL}/v2/seo-analyze?t=${timestamp}`,
-      `${API_BASE_URL}/seo-analyze?t=${timestamp}`, 
-      `${API_BASE_URL}/api/real-seo-audit?t=${timestamp}`,
-      // Add the direct "health" endpoint as a test if all others fail
-      `${API_BASE_URL}/health?t=${timestamp}`
-    ];
-    
-    let lastError: Error | null = null;
-    
-    // Try each endpoint until one succeeds
-    for (const endpoint of endpoints) {
-      try {
-        console.log(`Trying endpoint: ${endpoint}`);
-        
-        // For health endpoint, use GET instead of POST
-        if (endpoint.includes('/health')) {
-          const response = await fetch(endpoint, {
-            method: 'GET',
-            headers: {
-              'Cache-Control': 'no-cache, no-store'
-            },
-            credentials: 'omit', // Try without cookies
-            mode: 'cors' // Explicitly request CORS mode
-          });
-          
-          if (response.ok) {
-            const healthData = await response.json();
-            console.log('Health endpoint response:', healthData);
-            throw new Error('SEO endpoints not available, health check successful');
-          }
-          continue;
-        }
-        
-        // For all other endpoints
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache, no-store'
-          },
-          body: JSON.stringify({ url: normalizedUrl }),
-          credentials: 'omit', // Try without cookies
-          mode: 'cors' // Explicitly request CORS mode
-        });
-        
-        if (response.status === 404) {
-          console.log(`Endpoint ${endpoint} not found, trying next endpoint`);
-          continue;
-        }
-        
-        return await handleResponse<SeoAnalysisResponse>(response);
-      } catch (error) {
-        console.warn(`Error with endpoint ${endpoint}:`, error);
-        lastError = error as Error;
-      }
-    }
-    
-    // If all endpoints fail, try the fallback analysis
-    try {
-      console.log('All API endpoints failed, using fallback analysis');
-      return apiClient.createFallbackAnalysis(url);
-    } catch (error) {
-      console.error('Even fallback analysis failed:', error);
-      // Re-throw the last API error instead of the fallback error
-      throw lastError || new Error('All analysis methods failed');
-  },
-  
-  /**
    * Create a basic fallback analysis without API
    * @param url URL to analyze
    * @returns Mock analysis result for when API is unavailable
@@ -366,6 +276,100 @@ const apiClient = {
       }
     };
   },
+
+  /**
+   * Perform SEO analysis with comprehensive fallback strategy
+   * @param url URL to analyze
+   * @returns Promise with analysis results
+   */
+  quickSeoAnalysis: async (url: string): Promise<SeoAnalysisResponse> => {
+    console.log(`Performing SEO analysis for URL: ${url}`);
+    
+    if (!url || url.trim() === '') {
+      throw new Error('URL is required for analysis');
+    }
+    
+    const normalizedUrl = normalizeUrl(url);
+    
+    if (!isValidUrl(normalizedUrl)) {
+      throw new Error('Invalid URL format');
+    }
+    
+    // Add timestamp to prevent caching issues
+    const timestamp = new Date().getTime();
+    
+    // Try each endpoint in sequence with proper fallback handling
+    const endpoints = [
+      `${API_BASE_URL}/v2/seo-analyze?t=${timestamp}`,
+      `${API_BASE_URL}/seo-analyze?t=${timestamp}`, 
+      `${API_BASE_URL}/api/real-seo-audit?t=${timestamp}`,
+      // Add the direct "health" endpoint as a test if all others fail
+      `${API_BASE_URL}/health?t=${timestamp}`
+    ];
+    
+    let lastError: Error | null = null;
+    
+    // Try each endpoint until one succeeds
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`Trying endpoint: ${endpoint}`);
+        
+        // For health endpoint, use GET instead of POST
+        if (endpoint.includes('/health')) {
+          const response = await fetch(endpoint, {
+            method: 'GET',
+            headers: {
+              'Cache-Control': 'no-cache, no-store'
+            },
+            credentials: 'omit', // Try without cookies
+            mode: 'cors' // Explicitly request CORS mode
+          });
+          
+          if (response.ok) {
+            const healthData = await response.json();
+            console.log('Health endpoint response:', healthData);
+            throw new Error('SEO endpoints not available, health check successful');
+          }
+          continue;
+        }
+        
+        // For all other endpoints
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store'
+          },
+          body: JSON.stringify({ url: normalizedUrl }),
+          credentials: 'omit', // Try without cookies
+          mode: 'cors' // Explicitly request CORS mode
+        });
+        
+        if (response.status === 404) {
+          console.log(`Endpoint ${endpoint} not found, trying next endpoint`);
+          continue;
+        }
+        
+        return await handleResponse<SeoAnalysisResponse>(response);
+      } catch (error) {
+        console.warn(`Error with endpoint ${endpoint}:`, error);
+        lastError = error as Error;
+      }
+    }
+    
+    // If all endpoints fail, try the fallback analysis
+    try {
+      console.log('All API endpoints failed, using fallback analysis');
+      return apiClient.createFallbackAnalysis(url);
+    } catch (error) {
+      console.error('Even fallback analysis failed:', error);
+      // Re-throw the last API error instead of the fallback error
+      throw lastError || new Error('All analysis methods failed');
+    }
+  },
+  
+  /**
+   * Submit a page audit, with fallback to direct analysis
    * @param url URL to analyze
    * @param options Analysis options
    * @returns Job creation response or direct analysis result
