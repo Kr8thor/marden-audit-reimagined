@@ -24,6 +24,28 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 /**
+ * Retry function for API requests
+ */
+async function fetchWithRetry<T>(
+  url: string, 
+  options: RequestInit, 
+  retries = 3, 
+  backoff = 300
+): Promise<T> {
+  try {
+    const response = await fetch(url, options);
+    return await handleResponse<T>(response);
+  } catch (error) {
+    if (retries <= 0) {
+      throw error;
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, backoff));
+    return fetchWithRetry<T>(url, options, retries - 1, backoff * 2);
+  }
+}
+
+/**
  * API client for the Marden SEO Audit service
  */
 const apiClient = {
@@ -34,12 +56,23 @@ const apiClient = {
    * @returns Promise with job details
    */
   submitSiteAudit: async (url: string, options = {}): Promise<JobCreationResponse> => {
-    const response = await fetch(`${API_BASE_URL}/audit/site`, {
+    console.log(`Submitting site audit for URL: ${url}`);
+    
+    const normalizedUrl = url.startsWith('http') ? url : `https://${url}`;
+    
+    const response = await fetch(`${API_BASE_URL}/v2/audit/site`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ url, options }),
+      body: JSON.stringify({ 
+        url: normalizedUrl, 
+        options: {
+          ...options,
+          maxPages: options.maxPages || 10,
+          crawlDepth: options.crawlDepth || 2
+        }
+      }),
     });
     
     return handleResponse<JobCreationResponse>(response);
@@ -52,12 +85,19 @@ const apiClient = {
    * @returns Promise with job details
    */
   submitPageAudit: async (url: string, options = {}): Promise<JobCreationResponse> => {
-    const response = await fetch(`${API_BASE_URL}/audit/page`, {
+    console.log(`Submitting page audit for URL: ${url}`);
+    
+    const normalizedUrl = url.startsWith('http') ? url : `https://${url}`;
+    
+    const response = await fetch(`${API_BASE_URL}/v2/audit/page`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ url, options }),
+      body: JSON.stringify({ 
+        url: normalizedUrl, 
+        options
+      }),
     });
     
     return handleResponse<JobCreationResponse>(response);
@@ -69,8 +109,17 @@ const apiClient = {
    * @returns Promise with job status
    */
   getJobStatus: async (jobId: string): Promise<JobStatusResponse> => {
-    const response = await fetch(`${API_BASE_URL}/job/${jobId}`);
-    return handleResponse<JobStatusResponse>(response);
+    console.log(`Getting status for job: ${jobId}`);
+    
+    return fetchWithRetry<JobStatusResponse>(
+      `${API_BASE_URL}/v2/job/${jobId}`,
+      {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      }
+    );
   },
   
   /**
@@ -79,8 +128,17 @@ const apiClient = {
    * @returns Promise with job results
    */
   getJobResults: async (jobId: string): Promise<JobResultsResponse> => {
-    const response = await fetch(`${API_BASE_URL}/job/${jobId}/results`);
-    return handleResponse<JobResultsResponse>(response);
+    console.log(`Getting results for job: ${jobId}`);
+    
+    return fetchWithRetry<JobResultsResponse>(
+      `${API_BASE_URL}/v2/job/${jobId}/results`,
+      {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      }
+    );
   },
   
   /**
@@ -88,9 +146,37 @@ const apiClient = {
    * @returns Promise with health status
    */
   checkHealth: async (): Promise<HealthCheckResponse> => {
-    const response = await fetch(`${API_BASE_URL}/health`);
-    return handleResponse<HealthCheckResponse>(response);
+    return fetchWithRetry<HealthCheckResponse>(
+      `${API_BASE_URL}/v2/health`,
+      {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      }
+    );
   },
+  
+  /**
+   * Perform quick SEO analysis
+   * @param url URL to analyze
+   * @returns Promise with analysis results
+   */
+  quickSeoAnalysis: async (url: string): Promise<any> => {
+    console.log(`Performing quick SEO analysis for URL: ${url}`);
+    
+    const normalizedUrl = url.startsWith('http') ? url : `https://${url}`;
+    
+    const response = await fetch(`${API_BASE_URL}/v2/seo-analyze`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ url: normalizedUrl }),
+    });
+    
+    return handleResponse<any>(response);
+  }
 };
 
 export default apiClient;

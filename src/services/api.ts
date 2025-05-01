@@ -1,8 +1,7 @@
 // API service for Marden SEO Audit
 import { useState } from 'react';
-
-// Define the base URL for our API - direct connection to backend
-const API_URL = 'https://marden-audit-backend-se9t.vercel.app/api';
+import apiClient from '../api/client';
+import type { HealthCheckResponse } from '../api/types';
 
 // Type definitions
 export interface ApiResponse {
@@ -44,20 +43,9 @@ export interface AuditResult {
  * Check if the API is running
  * @returns Promise with API status
  */
-export const checkApiStatus = async (): Promise<ApiResponse> => {
+export const checkApiStatus = async (): Promise<HealthCheckResponse> => {
   try {
-    console.log('Checking API status at:', `${API_URL}`);
-    const response = await fetch(`${API_URL}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache'
-      },
-    });
-    if (!response.ok) {
-      throw new Error(`API returned status ${response.status}`);
-    }
-    return await response.json();
+    return await apiClient.checkHealth();
   } catch (error) {
     console.error('API status check failed:', error);
     throw error;
@@ -69,37 +57,39 @@ export const checkApiStatus = async (): Promise<ApiResponse> => {
  * @param url The website URL to audit
  * @returns Promise with audit results
  */
-export const runSeoAudit = async (url: string): Promise<AuditResult> => {
+export const runSeoAudit = async (url: string): Promise<any> => {
   try {
     console.log('Running SEO audit for URL:', url);
-    console.log('API endpoint:', `${API_URL}`);
     
-    // CRITICAL FIX: Direct call to backend API with explicit CORS headers
-    const response = await fetch(`${API_URL}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': window.location.origin,
-        'Cache-Control': 'no-cache'
-      },
-      body: JSON.stringify({ url }),
-    });
-    
-    console.log('API response status:', response.status);
-    
-    if (!response.ok) {
-      throw new Error(`API returned status ${response.status}`);
+    // First try the quick analysis endpoint
+    try {
+      const quickResult = await apiClient.quickSeoAnalysis(url);
+      
+      // If it's cached, we can return it immediately
+      if (quickResult.cached) {
+        console.log('Using cached SEO analysis');
+        return quickResult;
+      }
+    } catch (quickError) {
+      console.warn('Quick analysis not available, falling back to job-based audit');
     }
     
-    const data = await response.json();
-    console.log('API response data:', data);
+    // If quick analysis didn't work or wasn't cached, use the job system
+    const jobResponse = await apiClient.submitPageAudit(url);
     
-    // If the API returns an error status
-    if (data.status === 'error') {
-      throw new Error(data.message || 'Unknown API error');
+    // Poll for job completion
+    let jobStatus = await apiClient.getJobStatus(jobResponse.jobId);
+    
+    // If job is already completed (from cache), get results
+    if (jobStatus.job.status === 'completed' && jobStatus.job.hasResults) {
+      return apiClient.getJobResults(jobResponse.jobId);
     }
     
-    return data;
+    // Otherwise, we need to wait for the job to complete
+    // This would typically be handled by a polling mechanism
+    // in the UI rather than blocking here
+    throw new Error('Job started but not yet completed. Use jobId to check status: ' + jobResponse.jobId);
+    
   } catch (error) {
     console.error('SEO audit failed:', error);
     throw error;

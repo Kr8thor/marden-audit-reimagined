@@ -1,20 +1,17 @@
 @echo off
-echo Building the project...
-npm run build
+echo Deploying Marden Audit Frontend to Vercel...
 
-if %ERRORLEVEL% neq 0 (
-  echo Build failed. Exiting.
-  exit /b 1
-)
+echo Installing dependencies...
+call npm install
 
-echo Creating tarball of the dist directory...
-tar -czf dist.tar.gz -C dist .
+echo Building application...
+call npm run build
 
-echo Uploading to mardenseo.com...
-scp dist.tar.gz mardenseo@mardenseo.com:/tmp/
+echo Installing vercel CLI if not already installed...
+call npm install -g vercel
 
-echo Extracting files on the server...
-ssh mardenseo@mardenseo.com "mkdir -p /var/www/audit.mardenseo.com && rm -rf /var/www/audit.mardenseo.com/* && tar -xzf /tmp/dist.tar.gz -C /var/www/audit.mardenseo.com && rm /tmp/dist.tar.gz"
+echo Deploying to production...
+call vercel --prod
 
-echo Deployment completed successfully.
-echo Your application is now available at http://audit.mardenseo.com
+echo Deployment completed!
+pause
