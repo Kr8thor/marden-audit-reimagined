@@ -9,7 +9,7 @@ import { useAuditClient } from '../hooks/useAuditClient';
 import AuditResults from './audit/AuditResults';
 import AuditError from './audit/AuditError';
 
-// Simple URL validation regex
+// Improved URL validation regex
 const URL_REGEX = /^(https?:\/\/)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/;
 
 const BasicHero = () => {

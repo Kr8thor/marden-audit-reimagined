@@ -76,6 +76,11 @@ function normalizeUrl(url: string): string {
     normalizedUrl = normalizedUrl.slice(0, -1);
   }
   
+  // Handle www prefix consistently
+  if (normalizedUrl.startsWith('www.')) {
+    normalizedUrl = normalizedUrl.substring(4);
+  }
+  
   // Ensure proper protocol
   if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
     normalizedUrl = `https://${normalizedUrl}`;
@@ -298,6 +303,10 @@ const apiClient = {
     // Add timestamp to prevent caching issues
     const timestamp = new Date().getTime();
     
+    // Use AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 second timeout
+    
     // Try the consolidated endpoint for the API
     try {
       console.log(`Trying primary SEO analyze endpoint: ${API_BASE_URL}/seo-analyze`);
@@ -308,18 +317,26 @@ const apiClient = {
           'Content-Type': 'application/json',
           'Cache-Control': 'no-cache, no-store'
         },
-        body: JSON.stringify({ url: normalizedUrl }),
+        body: JSON.stringify({ 
+          url: normalizedUrl,
+          timestamp: timestamp // Add timestamp to prevent caching
+        }),
         credentials: 'omit', // Try without cookies
-        mode: 'cors' // Explicitly request CORS mode
+        mode: 'cors', // Explicitly request CORS mode
+        signal: controller.signal
       });
       
       if (response.ok) {
+        clearTimeout(timeoutId);
         return await handleResponse<SeoAnalysisResponse>(response);
       }
       
-      console.log(`Primary endpoint failed, trying alternatives...`);
-    } catch (error) {
+      console.log(`Primary endpoint failed with status ${response.status}, trying alternatives...`);
+    } catch (error: any) {
       console.warn(`Error with primary endpoint:`, error);
+      if (error.name === 'AbortError') {
+        console.log('Request timed out, trying alternative endpoints');
+      }
     }
     
     // Try alternative endpoints as fallback
@@ -336,16 +353,26 @@ const apiClient = {
       try {
         console.log(`Trying fallback endpoint: ${endpoint}`);
         
+        // Create new controller for each request
+        const endpointController = new AbortController();
+        const endpointTimeoutId = setTimeout(() => endpointController.abort(), 20000);
+        
         const response = await fetch(endpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Cache-Control': 'no-cache, no-store'
           },
-          body: JSON.stringify({ url: normalizedUrl }),
+          body: JSON.stringify({ 
+            url: normalizedUrl,
+            timestamp: timestamp // Add timestamp to prevent caching
+          }),
           credentials: 'omit',
-          mode: 'cors'
+          mode: 'cors',
+          signal: endpointController.signal
         });
+        
+        clearTimeout(endpointTimeoutId);
         
         if (response.status === 404) {
           console.log(`Endpoint ${endpoint} not found, trying next endpoint`);
@@ -363,12 +390,18 @@ const apiClient = {
     
     // Check health endpoint as last resort
     try {
+      const healthController = new AbortController();
+      const healthTimeoutId = setTimeout(() => healthController.abort(), 5000);
+      
       const response = await fetch(`${API_BASE_URL}/health`, {
         method: 'GET',
         headers: {
           'Cache-Control': 'no-cache, no-store'
-        }
+        },
+        signal: healthController.signal
       });
+      
+      clearTimeout(healthTimeoutId);
       
       if (response.ok) {
         const healthData = await response.json();
@@ -377,6 +410,32 @@ const apiClient = {
       }
     } catch (error) {
       console.warn('Health check also failed:', error);
+    }
+    
+    // Try a GET request to basic-audit as a last resort
+    try {
+      console.log('Trying basic-audit with GET request');
+      
+      const getController = new AbortController();
+      const getTimeoutId = setTimeout(() => getController.abort(), 20000);
+      
+      const response = await fetch(`${API_BASE_URL}/basic-audit?url=${encodeURIComponent(normalizedUrl)}&t=${timestamp}`, {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache, no-store'
+        },
+        credentials: 'omit',
+        mode: 'cors',
+        signal: getController.signal
+      });
+      
+      clearTimeout(getTimeoutId);
+      
+      if (response.ok) {
+        return await handleResponse<SeoAnalysisResponse>(response);
+      }
+    } catch (error) {
+      console.warn('GET basic-audit also failed:', error);
     }
     
     // If all API endpoints fail, use the local fallback analysis
