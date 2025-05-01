@@ -101,5 +101,3 @@ const AuditError: React.FC<AuditErrorProps> = ({ error, url, onTryAgain, onBackT
 };
 
 export default AuditError;
-
-export default AuditError;
