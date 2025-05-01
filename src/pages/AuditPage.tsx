@@ -339,14 +339,22 @@ const AuditPage: React.FC = () => {
     return 'Unknown error occurred';
   };
   
+  // Handle try again button click with improved error handling
   const handleTryAgain = () => {
     setIsLoading(true);
+    setProgress(0);
     setError(null);
     setJobId(null);
     setResults(null);
-    submitAuditQuery.refetch();
+    
+    // Add a small delay to ensure UI updates before making the request
+    setTimeout(() => {
+      console.log('Retrying analysis...');
+      submitAuditQuery.refetch();
+    }, 300);
   };
   
+  // Handle back to home button click
   const handleBackToHome = () => {
     navigate('/');
   };
