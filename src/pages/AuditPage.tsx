@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import apiClient from '../api/client';
-import { CircularProgress } from '../components/CircularProgress';
+import CircularProgress from '../components/CircularProgress';
 import AuditResults from '../components/audit/AuditResults';
 import AuditError from '../components/audit/AuditError';
 
