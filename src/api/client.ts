@@ -298,42 +298,44 @@ const apiClient = {
     // Add timestamp to prevent caching issues
     const timestamp = new Date().getTime();
     
-    // Try each endpoint in sequence with proper fallback handling
+    // Try the consolidated endpoint for the API
+    try {
+      console.log(`Trying primary SEO analyze endpoint: ${API_BASE_URL}/seo-analyze`);
+      
+      const response = await fetch(`${API_BASE_URL}/seo-analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store'
+        },
+        body: JSON.stringify({ url: normalizedUrl }),
+        credentials: 'omit', // Try without cookies
+        mode: 'cors' // Explicitly request CORS mode
+      });
+      
+      if (response.ok) {
+        return await handleResponse<SeoAnalysisResponse>(response);
+      }
+      
+      console.log(`Primary endpoint failed, trying alternatives...`);
+    } catch (error) {
+      console.warn(`Error with primary endpoint:`, error);
+    }
+    
+    // Try alternative endpoints as fallback
     const endpoints = [
-      `${API_BASE_URL}/v2/seo-analyze?t=${timestamp}`,
-      `${API_BASE_URL}/seo-analyze?t=${timestamp}`, 
-      `${API_BASE_URL}/api/real-seo-audit?t=${timestamp}`,
-      // Add the direct "health" endpoint as a test if all others fail
-      `${API_BASE_URL}/health?t=${timestamp}`
+      `${API_BASE_URL}/v2/seo-analyze`,
+      `${API_BASE_URL}/api/real-seo-audit`,
+      `${API_BASE_URL}/basic-audit`
     ];
     
     let lastError: Error | null = null;
     
-    // Try each endpoint until one succeeds
+    // Try each fallback endpoint until one succeeds
     for (const endpoint of endpoints) {
       try {
-        console.log(`Trying endpoint: ${endpoint}`);
+        console.log(`Trying fallback endpoint: ${endpoint}`);
         
-        // For health endpoint, use GET instead of POST
-        if (endpoint.includes('/health')) {
-          const response = await fetch(endpoint, {
-            method: 'GET',
-            headers: {
-              'Cache-Control': 'no-cache, no-store'
-            },
-            credentials: 'omit', // Try without cookies
-            mode: 'cors' // Explicitly request CORS mode
-          });
-          
-          if (response.ok) {
-            const healthData = await response.json();
-            console.log('Health endpoint response:', healthData);
-            throw new Error('SEO endpoints not available, health check successful');
-          }
-          continue;
-        }
-        
-        // For all other endpoints
         const response = await fetch(endpoint, {
           method: 'POST',
           headers: {
@@ -341,8 +343,8 @@ const apiClient = {
             'Cache-Control': 'no-cache, no-store'
           },
           body: JSON.stringify({ url: normalizedUrl }),
-          credentials: 'omit', // Try without cookies
-          mode: 'cors' // Explicitly request CORS mode
+          credentials: 'omit',
+          mode: 'cors'
         });
         
         if (response.status === 404) {
@@ -350,22 +352,36 @@ const apiClient = {
           continue;
         }
         
-        return await handleResponse<SeoAnalysisResponse>(response);
+        if (response.ok) {
+          return await handleResponse<SeoAnalysisResponse>(response);
+        }
       } catch (error) {
         console.warn(`Error with endpoint ${endpoint}:`, error);
         lastError = error as Error;
       }
     }
     
-    // If all endpoints fail, try the fallback analysis
+    // Check health endpoint as last resort
     try {
-      console.log('All API endpoints failed, using fallback analysis');
-      return apiClient.createFallbackAnalysis(url);
+      const response = await fetch(`${API_BASE_URL}/health`, {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache, no-store'
+        }
+      });
+      
+      if (response.ok) {
+        const healthData = await response.json();
+        console.log('Health endpoint response:', healthData);
+        console.log('API is healthy but SEO endpoints failed, using fallback analysis');
+      }
     } catch (error) {
-      console.error('Even fallback analysis failed:', error);
-      // Re-throw the last API error instead of the fallback error
-      throw lastError || new Error('All analysis methods failed');
+      console.warn('Health check also failed:', error);
     }
+    
+    // If all API endpoints fail, use the local fallback analysis
+    console.log('All API endpoints failed, using fallback analysis');
+    return apiClient.createFallbackAnalysis(url);
   },
   
   /**

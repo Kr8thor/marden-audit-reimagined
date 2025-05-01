@@ -15,6 +15,7 @@ const AuditPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [results, setResults] = useState<any | null>(null);
+  const [progress, setProgress] = useState<number>(0);
   
   // Submit the URL for analysis or direct SEO analysis
   const submitAuditQuery = useQuery({
@@ -359,15 +360,45 @@ const AuditPage: React.FC = () => {
     navigate('/');
   };
   
+  // Update progress based on job status
+  useEffect(() => {
+    if (isLoading) {
+      let statusText = 'Submitting URL...';
+      
+      if (jobStatusQuery.data?.job) {
+        const jobStatus = jobStatusQuery.data.job;
+        setProgress(jobStatus.progress || 10);
+        
+        if (jobStatus.status === 'queued') {
+          statusText = 'Queued for processing...';
+        } else if (jobStatus.status === 'processing') {
+          statusText = jobStatus.message || 'Processing audit...';
+        } else if (jobStatus.status === 'completed') {
+          statusText = 'Retrieving results...';
+          setProgress(95);
+        }
+      } else if (submitAuditQuery.isLoading) {
+        statusText = 'Analyzing URL...';
+        
+        // Animate progress during analysis
+        const timer = setInterval(() => {
+          setProgress(prev => {
+            if (prev < 75) return prev + 5;
+            return prev;
+          });
+        }, 1000);
+        
+        return () => clearInterval(timer);
+      }
+    }
+  }, [isLoading, jobStatusQuery.data, submitAuditQuery.isLoading]);
+
   // Show loading state
   if (isLoading) {
-    // Calculate progress based on job status
-    let progress = 0;
     let statusText = 'Submitting URL...';
     
     if (jobStatusQuery.data?.job) {
       const jobStatus = jobStatusQuery.data.job;
-      progress = jobStatus.progress || 0;
       
       if (jobStatus.status === 'queued') {
         statusText = 'Queued for processing...';
@@ -375,11 +406,9 @@ const AuditPage: React.FC = () => {
         statusText = jobStatus.message || 'Processing audit...';
       } else if (jobStatus.status === 'completed') {
         statusText = 'Retrieving results...';
-        progress = 95;
       }
     } else if (submitAuditQuery.isLoading) {
       statusText = 'Analyzing URL...';
-      progress = 50;
     }
     
     return (
