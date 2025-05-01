@@ -105,16 +105,22 @@ const AuditPage: React.FC = () => {
         // Extract categories and issues if available (V2 API format)
         const categories = resultData.categories || {};
         
-        // Count issues for display
+        // Get the data.data property if it exists (nested structure)
+        const innerData = resultData.data || {};
+        
+        // Count issues for display - try different paths
         const issuesCount = 
+          resultData.totalIssuesCount != null ? resultData.totalIssuesCount :
+          innerData.totalIssuesCount != null ? innerData.totalIssuesCount :
+          resultData.criticalIssuesCount != null ? resultData.criticalIssuesCount :
           (categories.metadata?.issues?.length || 0) +
           (categories.content?.issues?.length || 0) +
           (categories.technical?.issues?.length || 0) +
           (categories.userExperience?.issues?.length || 0);
         
         // Convert v2 data format to pageAnalysis format for display compatibility
-        const pageData = resultData.pageData || {};
-        const pageAnalysis = resultData.pageAnalysis || {
+        const pageData = resultData.pageData || innerData.pageData || {};
+        const pageAnalysis = resultData.pageAnalysis || innerData.pageAnalysis || {
           title: pageData.title || { text: '', length: 0 },
           metaDescription: pageData.metaDescription || { text: '', length: 0 },
           headings: pageData.headings || { h1Count: 0, h1Texts: [], h2Count: 0, h2Texts: [] },
@@ -128,13 +134,16 @@ const AuditPage: React.FC = () => {
           pageAnalysis.canonical = pageData.technical.canonicalUrl || '';
         }
         
-        // Properly normalize the score
-        const score = resultData.score != null ? 
-          resultData.score : 
+        // Properly normalize the score - check multiple paths for the score
+        const score = resultData.score != null ? resultData.score : 
+          innerData.score != null ? innerData.score :
+          categories.content?.score != null ? categories.content.score :
           categories.metadata?.score !== undefined ? 
-            (categories.metadata.score + categories.content?.score + categories.technical?.score + categories.userExperience?.score) / 4 : 
+            (categories.metadata.score + (categories.content?.score || 0) + 
+             (categories.technical?.score || 0) + (categories.userExperience?.score || 0)) / 4 : 
             0;
         
+        // Create a complete result with all possible data paths
         return {
           ...resultData,
           score: Math.round(score),
@@ -144,7 +153,8 @@ const AuditPage: React.FC = () => {
           siteAnalysis: resultData.siteAnalysis || null,
           cached: sourceData.cached || resultData.cached || false,
           cachedAt: sourceData.cachedAt || resultData.cachedAt || new Date().toISOString(),
-          categories // Include categories if available (V2 API)
+          categories, // Include categories if available (V2 API)
+          data: resultData // Include the raw data for direct access
         };
       };
       
@@ -152,6 +162,9 @@ const AuditPage: React.FC = () => {
       if (submitAuditQuery.data.directResults) {
         console.log("Setting direct analysis results");
         const processedResults = processResult(submitAuditQuery.data);
+        
+        // Debug the processed results
+        console.log("Processed results:", JSON.stringify(processedResults, null, 2));
         
         setResults(processedResults);
         setIsLoading(false);
@@ -238,16 +251,22 @@ const AuditPage: React.FC = () => {
         // Extract categories and issues if available (V2 API format)
         const categories = resultData.categories || {};
         
-        // Count issues for display
+        // Get the data.data property if it exists (nested structure)
+        const innerData = resultData.data || {};
+        
+        // Count issues for display - check all possible paths
         const issuesCount = 
+          resultData.totalIssuesCount != null ? resultData.totalIssuesCount :
+          innerData.totalIssuesCount != null ? innerData.totalIssuesCount :
+          resultData.criticalIssuesCount != null ? resultData.criticalIssuesCount :
           (categories.metadata?.issues?.length || 0) +
           (categories.content?.issues?.length || 0) +
           (categories.technical?.issues?.length || 0) +
           (categories.userExperience?.issues?.length || 0);
         
         // Convert v2 data format to pageAnalysis format for display compatibility
-        const pageData = resultData.pageData || {};
-        const pageAnalysis = resultData.pageAnalysis || {
+        const pageData = resultData.pageData || innerData.pageData || {};
+        const pageAnalysis = resultData.pageAnalysis || innerData.pageAnalysis || {
           title: pageData.title || { text: '', length: 0 },
           metaDescription: pageData.metaDescription || { text: '', length: 0 },
           headings: pageData.headings || { h1Count: 0, h1Texts: [], h2Count: 0, h2Texts: [] },
@@ -256,13 +275,22 @@ const AuditPage: React.FC = () => {
           contentLength: pageData.content?.contentLength || 0
         };
         
-        // Properly normalize the score
-        const score = resultData.score != null ? 
-          resultData.score : 
+        // Properly normalize the score - check multiple paths for the score
+        const score = resultData.score != null ? resultData.score : 
+          innerData.score != null ? innerData.score :
+          categories.content?.score != null ? categories.content.score :
           categories.metadata?.score !== undefined ? 
-            (categories.metadata.score + categories.content?.score + categories.technical?.score + categories.userExperience?.score) / 4 : 
+            (categories.metadata.score + (categories.content?.score || 0) + 
+             (categories.technical?.score || 0) + (categories.userExperience?.score || 0)) / 4 : 
             0;
         
+        // Debug the normalized data
+        console.log("Normalized job results:", {
+          score: Math.round(score),
+          issuesFound: resultData.issuesFound != null ? resultData.issuesFound : issuesCount
+        });
+        
+        // Create a complete result with all possible data paths
         return {
           ...resultData,
           score: Math.round(score),
@@ -272,7 +300,8 @@ const AuditPage: React.FC = () => {
           siteAnalysis: resultData.siteAnalysis || null,
           cached: sourceData.cached || resultData.cached || false,
           cachedAt: sourceData.cachedAt || resultData.cachedAt || new Date().toISOString(),
-          categories // Include categories if available (V2 API)
+          categories, // Include categories if available (V2 API)
+          data: resultData // Include the raw data for direct access
         };
       };
       
@@ -450,6 +479,7 @@ const AuditPage: React.FC = () => {
           cached={results?.cached}
           cachedAt={results?.cachedAt}
           categories={results?.categories}
+          data={results?.data} // Pass the raw data as well
         />
         <div className="mt-8 border-t border-white/10 pt-4 flex justify-between">
           <button 

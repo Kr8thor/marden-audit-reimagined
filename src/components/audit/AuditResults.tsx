@@ -15,6 +15,7 @@ interface AuditResultsProps {
     technical?: { score: number; issues: Array<any> };
     userExperience?: { score: number; issues: Array<any> };
   };
+  data?: any; // Add data prop to handle direct API response data
 }
 
 const AuditResults: React.FC<AuditResultsProps> = ({ 
@@ -26,10 +27,30 @@ const AuditResults: React.FC<AuditResultsProps> = ({
   opportunities,
   cached = false,
   cachedAt,
-  categories
+  categories,
+  data // Added data prop
 }) => {
-  // Calculate derived metrics from real data
-  const actualScore = score ?? (pageAnalysis?.score || 0);
+  // Debug the props we receive to help diagnose issues
+  console.log("AuditResults props:", { score, issuesFound, categories });
+  
+  // Force debug to see what data we have
+  console.log("Raw score value:", score);
+  console.log("Raw data:", data);
+  console.log("Raw categories:", categories);
+  
+  // Calculate derived metrics from real data with fallbacks - prioritize direct values
+  const actualScore = 
+    (score !== undefined && score !== null) ? score : 
+    (data?.score !== undefined && data?.score !== null) ? data?.score : 
+    (categories?.content?.score !== undefined && categories?.content?.score !== null) ? categories?.content?.score : 
+    (pageAnalysis?.score !== undefined && pageAnalysis?.score !== null) ? pageAnalysis?.score : 
+    (categories ? 
+      Math.round((
+        (categories.metadata?.score || 0) + 
+        (categories.content?.score || 0) + 
+        (categories.technical?.score || 0) + 
+        (categories.userExperience?.score || 0)
+      ) / 4) : 0);
   
   // Extract issues from pageAnalysis or categories if available
   const topIssues = React.useMemo(() => {
@@ -155,8 +176,21 @@ const AuditResults: React.FC<AuditResultsProps> = ({
     ];
   }, [pageAnalysis, categories]);
   
-  // Calculate actual issues count
-  const actualIssuesFound = issuesFound ?? topIssues.length;
+  // Calculate actual issues count with better fallbacks
+  const actualIssuesFound = 
+    (issuesFound !== undefined && issuesFound !== null) ? issuesFound : 
+    (data?.totalIssuesCount !== undefined && data?.totalIssuesCount !== null) ? data.totalIssuesCount :
+    (data?.criticalIssuesCount !== undefined && data?.criticalIssuesCount !== null) ? data.criticalIssuesCount :
+    // If we have categories, count all issues across categories
+    categories ? 
+      (categories.metadata?.issues?.length || 0) +
+      (categories.content?.issues?.length || 0) +
+      (categories.technical?.issues?.length || 0) +
+      (categories.userExperience?.issues?.length || 0) 
+      : (topIssues?.length || 0);
+      
+  // Debug the actual issues count that will be displayed
+  console.log("Calculated Issues Found:", actualIssuesFound);
   const actualOpportunities = opportunities ?? Math.min(actualIssuesFound, 5);
   
   // Performance metrics - use defaults or data from analysis
