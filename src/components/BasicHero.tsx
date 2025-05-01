@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Input } from './ui/input';
 import { ChevronRight, Play, Search, AlertTriangle } from 'lucide-react';
 import { Dialog, DialogContent, DialogTrigger } from './ui/dialog';
@@ -12,6 +13,7 @@ import AuditError from './audit/AuditError';
 const URL_REGEX = /^(https?:\/\/)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/;
 
 const BasicHero = () => {
+  const navigate = useNavigate();
   const [url, setUrl] = useState('');
   const [urlError, setUrlError] = useState<string | null>(null);
   
@@ -29,10 +31,19 @@ const BasicHero = () => {
     }
   };
   
-  // Handle scan button click
+  // Handle scan button click - now navigates to the audit page
   const handleScan = () => {
     if (!url || urlError) return;
-    runAudit(url);
+    
+    // Normalize the URL for the route parameter
+    let normalizedUrl = url.trim();
+    if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+      normalizedUrl = normalizedUrl.replace(/^www\./, '');
+    }
+    
+    // URL encode the normalized URL and navigate
+    const encodedUrl = encodeURIComponent(normalizedUrl);
+    navigate(`/audit/${encodedUrl}`);
   };
   
   return (
@@ -96,19 +107,6 @@ const BasicHero = () => {
           {/* URL Scan Demo */}
           <div id="audit-input" className="max-w-4xl mx-auto bg-card/30 backdrop-blur-md border border-white/10 rounded-xl p-6 animate-fade-in neon-glow-purple" style={{ animationDelay: '0.3s' }}>
             <div className="relative">
-              {isLoading && <div className="scan-line"></div>}
-              
-              {/* API Status Indicator */}
-              {error && (
-                <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-red-400" />
-                  <div className="text-sm">
-                    <span className="font-medium">Error: </span> 
-                    <span className="text-white/70">{error}</span>
-                  </div>
-                </div>
-              )}
-              
               <div className="mb-8">
                 <div className="flex flex-col sm:flex-row items-stretch gap-3">
                   <div className="relative flex-grow">
@@ -118,7 +116,6 @@ const BasicHero = () => {
                       className={`pl-10 bg-background/50 border-white/10 focus:border-primary h-12 ${urlError ? 'border-red-400' : ''}`}
                       value={url}
                       onChange={(e) => validateUrl(e.target.value)}
-                      disabled={isLoading}
                     />
                     {urlError && (
                       <div className="text-red-400 text-xs mt-1 ml-1">{urlError}</div>
@@ -129,9 +126,9 @@ const BasicHero = () => {
                     glowColor="blue" 
                     className="h-12 sm:w-32"
                     onClick={handleScan}
-                    disabled={isLoading || !url || !!urlError}
+                    disabled={!url || !!urlError}
                   >
-                    {isLoading ? 'Scanning...' : 'Analyze'}
+                    Analyze
                   </AnimatedButton>
                 </div>
               </div>
@@ -139,51 +136,15 @@ const BasicHero = () => {
               {/* Dashboard Preview */}
               <div className="w-full rounded-lg overflow-hidden">
                 <div className="bg-background/50 border border-white/10 rounded-lg p-4">
-                  {isLoading && (
-                    <div className="flex flex-col items-center justify-center py-8">
-                      <div className="relative w-32 h-32 mb-6">
-                        <div className="radar-scan"></div>
-                        <CircularProgress
-                          value={progress}
-                          size={130}
-                          strokeWidth={6}
-                          gradientStart="#8b5cf6"
-                          gradientEnd="#0ea5e9"
-                          animate={true}
-                          duration={300}
-                          label="Scanning"
-                        />
-                      </div>
-                      <div className="text-sm text-muted-foreground text-center max-w-sm">
-                        Analyzing {url || 'your website'} for SEO issues and opportunities...
-                      </div>
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
+                      <Search className="h-7 w-7 text-white/70" />
                     </div>
-                  )}
-                  
-                  {!isLoading && result && (
-                    <AuditResults 
-                      pageAnalysis={result.pageAnalysis}
-                      siteAnalysis={null}
-                      url={url}
-                      result={result}
-                    />
-                  )}
-                  
-                  {!isLoading && error && (
-                    <AuditError message={error} onReset={() => setError(null)} />
-                  )}
-                  
-                  {!isLoading && !result && !error && (
-                    <div className="flex flex-col items-center justify-center py-12 text-center">
-                      <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                        <Search className="h-7 w-7 text-white/70" />
-                      </div>
-                      <h3 className="text-lg font-medium mb-2">Enter your URL to begin</h3>
-                      <p className="text-sm text-muted-foreground max-w-sm">
-                        Get a comprehensive SEO analysis with actionable insights in seconds.
-                      </p>
-                    </div>
-                  )}
+                    <h3 className="text-lg font-medium mb-2">Enter your URL to begin</h3>
+                    <p className="text-sm text-muted-foreground max-w-sm">
+                      Get a comprehensive SEO analysis with actionable insights in seconds.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

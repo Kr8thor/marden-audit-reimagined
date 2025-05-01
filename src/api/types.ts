@@ -1,133 +1,125 @@
 /**
- * Types for API responses
+ * Response when creating a new audit job
  */
-
-// Job statuses
-export type JobStatus = 'queued' | 'processing' | 'completed' | 'failed';
-
-// API response for job creation
 export interface JobCreationResponse {
   status: 'ok' | 'error';
   message: string;
   jobId: string;
   url: string;
+  cached?: boolean;
+  cachedAt?: string;
+  timestamp?: string;
+  data?: any;
 }
 
-// API response for job status
+/**
+ * Response when getting job status
+ */
 export interface JobStatusResponse {
   status: 'ok' | 'error';
+  message: string;
+  jobId: string;
   job: {
     id: string;
-    status: JobStatus;
-    progress: number;
-    created: number;
-    updated: number;
-    hasResults: boolean;
-    error?: {
-      message: string;
-      stack?: string;
-    };
-    type: 'site_audit' | 'page_audit';
-    params: {
-      url: string;
-      options: any;
-    };
-  };
-}
-
-// Performance metrics
-export interface PerformanceMetrics {
-  ttfb?: number;
-  domContentLoaded?: number;
-  domComplete?: number;
-  load?: number;
-}
-
-// Issue
-export interface Issue {
-  type: string;
-  message: string;
-  impact: 'high' | 'medium' | 'low';
-  category: 'meta' | 'content' | 'technical' | 'general';
-  details?: any;
-}
-
-// Recommendation
-export interface Recommendation {
-  type: string;
-  message: string;
-  impact: 'high' | 'medium' | 'low';
-  category: 'meta' | 'content' | 'technical' | 'general';
-  details?: string;
-  count?: number;
-  pages?: string[];
-  affectedPages?: number;
-  examplePages?: string[];
-}
-
-// Scores
-export interface ScoreData {
-  overall: number;
-  meta: number;
-  content: number;
-  technical: number;
-}
-
-// Page analysis result
-export interface PageAnalysisResult {
-  url: string;
-  timestamp: string;
-  scores: ScoreData;
-  issues: Issue[];
-  issueCount: number;
-  recommendations: Recommendation[];
-  categories: {
-    meta: any;
-    content: any;
-    technical: any;
-  };
-}
-
-// Site analysis result
-export interface SiteAnalysisResult {
-  baseUrl: string;
-  timestamp: string;
-  crawlStats: {
-    pagesVisited: number;
-    crawlDuration: number;
-  };
-  scores: ScoreData;
-  totalIssues: number;
-  issueTypeCounts: Record<string, number>;
-  topIssues: Array<{
     type: string;
-    count: number;
-  }>;
-  recommendations: Recommendation[];
-  pages: Record<string, PageAnalysisResult | { skipped: boolean; reason: string }>;
+    status: 'queued' | 'processing' | 'completed' | 'failed';
+    progress: number;
+    createdAt: number;
+    updatedAt: number;
+    url: string;
+    options?: Record<string, any>;
+    message?: string;
+    error?: string;
+  };
+  timestamp?: string;
 }
 
-// API response for job results
+/**
+ * Response when getting job results
+ */
 export interface JobResultsResponse {
   status: 'ok' | 'error';
+  message: string;
   jobId: string;
-  completed: number;
-  results: {
-    report?: SiteAnalysisResult;
-    analysis?: PageAnalysisResult;
-    stats: {
-      pagesScanned?: number;
-      crawlDuration: number;
-      analysisTimestamp: string;
-    };
-  };
+  url: string;
+  results: any;
+  cached: boolean;
+  cachedAt?: string;
+  timestamp?: string;
 }
 
-// Health check response
+/**
+ * Response from health check endpoint
+ */
 export interface HealthCheckResponse {
   status: 'ok' | 'error';
-  timestamp: string;
   version: string;
-  environment: string;
   message: string;
+  components: {
+    redis: {
+      status: 'ok' | 'error';
+      error: string | null;
+    };
+    api: {
+      status: 'ok' | 'error';
+    };
+  };
+  timestamp?: string;
+}
+
+/**
+ * SEO analysis results data structure
+ */
+export interface SeoAnalysisResult {
+  url: string;
+  score: number;
+  issuesFound: number;
+  opportunities: number;
+  pageAnalysis: {
+    title: {
+      text: string;
+      length: number;
+    };
+    metaDescription: {
+      text: string;
+      length: number;
+    };
+    headings: {
+      h1Count: number;
+      h1Texts: string[];
+      h2Count: number;
+      h2Texts: string[];
+      h3Count?: number;
+    };
+    links?: {
+      internalCount: number;
+      externalCount: number;
+      totalCount: number;
+    };
+    images?: {
+      withoutAltCount: number;
+    };
+    contentLength?: number;
+    canonical?: string;
+    hreflang?: Array<{
+      hreflang: string;
+      href: string;
+    }>;
+  };
+  siteAnalysis?: {
+    averageScore: number;
+    commonIssues: Array<{
+      type: string;
+      frequency: number;
+      severity: string;
+    }>;
+    pages: Array<{
+      url: string;
+      score: number;
+      title: string;
+      issuesFound: number;
+    }>;
+  };
+  cached?: boolean;
+  cachedAt?: string;
 }

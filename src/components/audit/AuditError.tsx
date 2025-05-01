@@ -1,29 +1,42 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { Button } from '../ui/button';
 
 interface AuditErrorProps {
-  message: string;
-  onReset: () => void;
+  error: string;
+  url: string;
+  onTryAgain: () => void;
+  onBackToHome: () => void;
 }
 
-const AuditError: React.FC<AuditErrorProps> = ({ message, onReset }) => {
+const AuditError: React.FC<AuditErrorProps> = ({ error, url, onTryAgain, onBackToHome }) => {
   return (
-    <div className="flex flex-col items-center justify-center py-8 text-center">
-      <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-4">
-        <AlertTriangle className="h-8 w-8 text-red-400" />
+    <div className="container max-w-3xl mx-auto pt-12 px-4">
+      <div className="bg-card p-8 rounded-lg shadow-lg border border-white/5">
+        <div className="flex flex-col items-center justify-center text-center">
+          <AlertTriangle size={48} className="text-red-400 mb-4" />
+          <h3 className="text-xl font-semibold mb-2">Audit Failed</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            We encountered an error while analyzing {url}
+          </p>
+          <div className="bg-white/5 p-4 rounded-md text-sm text-red-300 mb-6 w-full">
+            {error}
+          </div>
+          <div className="flex gap-4">
+            <button 
+              onClick={onTryAgain}
+              className="bg-primary hover:bg-primary/90 text-white rounded-md px-4 py-2 text-sm"
+            >
+              Try Again
+            </button>
+            <button 
+              onClick={onBackToHome}
+              className="bg-white/10 hover:bg-white/20 text-white rounded-md px-4 py-2 text-sm"
+            >
+              Back to Home
+            </button>
+          </div>
+        </div>
       </div>
-      <h3 className="text-lg font-medium mb-2">Audit Failed</h3>
-      <p className="text-sm text-muted-foreground max-w-md mb-6">
-        {message || "There was an error while analyzing this website. Please try again."}
-      </p>
-      <Button 
-        variant="outline" 
-        className="border-white/10 hover:bg-white/5"
-        onClick={onReset}
-      >
-        Try Again
-      </Button>
     </div>
   );
 };
