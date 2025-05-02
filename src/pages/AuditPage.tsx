@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -11,6 +11,12 @@ import AuditError from '../components/audit/AuditError';
 const AuditPage: React.FC = () => {
   const { url } = useParams<{ url: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get audit type from URL query parameters (default to 'quick')
+  const queryParams = new URLSearchParams(location.search);
+  const auditType = queryParams.get('type') === 'site' ? 'site' : 'quick';
+  
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -23,26 +29,39 @@ const AuditPage: React.FC = () => {
     queryFn: async () => {
       if (!url) throw new Error('URL is required');
       try {
-        // First try direct SEO analysis as it's faster
-        console.log("Trying direct SEO analysis first");
-        const analysisResult = await apiClient.quickSeoAnalysis(url);
-        
-        // If we have data from direct analysis, return it immediately
-        if (analysisResult && !analysisResult.error) {
-          console.log("Direct SEO analysis successful:", analysisResult);
-          return { 
-            status: 'ok',
-            jobId: 'direct-analysis',
-            url: url,
-            cached: analysisResult.cached || false,
-            cachedAt: analysisResult.cachedAt,
-            directResults: analysisResult
-          };
+        // First try site-wide audit to crawl multiple pages
+        console.log("Trying site-wide audit first");
+        try {
+          const siteAuditResult = await apiClient.submitSiteAudit(url, {
+            maxPages: 20, // Set to crawl 20 pages as required
+            depth: 3      // Reasonable depth for most sites
+          });
+          
+          console.log("Site-wide audit submitted:", siteAuditResult);
+          return siteAuditResult;
+        } catch (siteError) {
+          console.warn("Site-wide audit failed, falling back to direct analysis:", siteError);
+          
+          // If site audit fails, fall back to direct SEO analysis as it's faster
+          const analysisResult = await apiClient.quickSeoAnalysis(url);
+          
+          // If we have data from direct analysis, return it immediately
+          if (analysisResult && !analysisResult.error) {
+            console.log("Direct SEO analysis successful:", analysisResult);
+            return { 
+              status: 'ok',
+              jobId: 'direct-analysis',
+              url: url,
+              cached: analysisResult.cached || false,
+              cachedAt: analysisResult.cachedAt,
+              directResults: analysisResult
+            };
+          }
+          
+          // If direct analysis fails too, try the single page job-based approach
+          console.log("Direct SEO analysis failed, trying job-based page audit");
+          return await apiClient.submitPageAudit(url);
         }
-        
-        // If direct analysis fails, try the job-based approach
-        console.log("Direct SEO analysis failed, trying job-based audit");
-        return await apiClient.submitPageAudit(url);
       } catch (err: any) {
         console.error('Error submitting audit:', err);
         throw err;
@@ -446,6 +465,9 @@ const AuditPage: React.FC = () => {
           <div className="flex flex-col items-center justify-center py-6">
             <CircularProgress value={progress} size={120} strokeWidth={6} />
             <h3 className="text-xl font-semibold mt-6 mb-2">Analyzing {url}</h3>
+            <div className="bg-primary/20 text-primary-foreground text-xs px-3 py-1 rounded-full mb-3">
+              {auditType === 'site' ? 'Site-wide Audit (up to 20 pages)' : 'Quick Single-page Audit'}
+            </div>
             <p className="text-sm text-muted-foreground mb-4">{statusText}</p>
           </div>
         </div>

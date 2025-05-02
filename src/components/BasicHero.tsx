@@ -32,7 +32,7 @@ const BasicHero = () => {
   };
   
   // Handle scan button click - now navigates to the audit page
-  const handleScan = () => {
+  const handleScan = (type: 'quick' | 'site' = 'quick') => {
     if (!url || urlError) return;
     
     // Normalize the URL for the route parameter
@@ -41,9 +41,9 @@ const BasicHero = () => {
       normalizedUrl = normalizedUrl.replace(/^www\./, '');
     }
     
-    // URL encode the normalized URL and navigate
+    // URL encode the normalized URL and navigate with the audit type
     const encodedUrl = encodeURIComponent(normalizedUrl);
-    navigate(`/audit/${encodedUrl}`);
+    navigate(`/audit/${encodedUrl}?type=${type}`);
   };
   
   return (
@@ -121,15 +121,30 @@ const BasicHero = () => {
                       <div className="text-red-400 text-xs mt-1 ml-1">{urlError}</div>
                     )}
                   </div>
-                  <AnimatedButton
-                    variant="primary"
-                    glowColor="blue" 
-                    className="h-12 sm:w-32"
-                    onClick={handleScan}
-                    disabled={!url || !!urlError}
-                  >
-                    Analyze
-                  </AnimatedButton>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <AnimatedButton
+                      variant="primary"
+                      glowColor="blue" 
+                      className="h-12"
+                      onClick={() => handleScan('quick')}
+                      disabled={!url || !!urlError}
+                    >
+                      Quick Audit
+                    </AnimatedButton>
+                    <AnimatedButton
+                      variant="outline"
+                      glowColor="purple" 
+                      className="h-12"
+                      onClick={() => handleScan('site')}
+                      disabled={!url || !!urlError}
+                      title="Analyzes up to 20 pages on your site"
+                    >
+                      Site Audit (20 pages)
+                    </AnimatedButton>
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground mt-2 text-center">
+                  Quick Audit analyzes a single page • Site Audit crawls up to 20 pages on your website
                 </div>
               </div>
               

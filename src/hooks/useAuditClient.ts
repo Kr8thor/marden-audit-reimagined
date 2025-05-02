@@ -30,19 +30,23 @@ export interface AuditResult {
   cachedAt?: string;
 }
 
+export type AuditType = 'quick' | 'site';
+
 export function useAuditClient() {
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<AuditResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [auditType, setAuditType] = useState<AuditType>('quick');
   
   // Advanced function to run an audit using our API client
-  const runAudit = async (url: string) => {
+  const runAudit = async (url: string, type: AuditType = 'quick') => {
     try {
       // Reset state
       setIsLoading(true);
       setProgress(0);
       setError(null);
+      setAuditType(type);
       
       // Start progress simulation
       const interval = setInterval(() => {
@@ -53,10 +57,22 @@ export function useAuditClient() {
         });
       }, 300);
       
-      // Use our API client for the audit
+      // Use our API client for the audit based on type
       try {
-        // Use direct SEO analysis for speed
-        const response = await apiClient.quickSeoAnalysis(url);
+        let response;
+        
+        if (type === 'site') {
+          // Use site audit for crawling up to 20 pages
+          console.log('Running site-wide audit (multiple pages)');
+          response = await apiClient.submitSiteAudit(url, {
+            maxPages: 20, // Set to crawl 20 pages
+            depth: 3     // Reasonable depth for most sites
+          });
+        } else {
+          // Use direct SEO analysis for quick single-page audit
+          console.log('Running quick audit (single page)');
+          response = await apiClient.quickSeoAnalysis(url);
+        }
         
         // Process the response data
         if (response && response.data) {
