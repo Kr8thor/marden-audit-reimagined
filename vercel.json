@@ -14,7 +14,7 @@
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "X-Frame-Options", "value": "DENY" },
         { "key": "X-XSS-Protection", "value": "1; mode=block" },
-        { "key": "Content-Security-Policy", "value": "default-src 'self'; connect-src 'self' https://marden-audit-backend-se9t.vercel.app https://marden-audit-backend-se9t-1teaqx7gb-leo-corbetts-projects.vercel.app https://marden-audit-backend-se9t-61sif2zde-leo-corbetts-projects.vercel.app https://marden-audit-backend-se9t-exw5mljb9-leo-corbetts-projects.vercel.app https://*.vercel.app https://smiling-shrimp-21387.upstash.io:6379 https://smiling-shrimp-21387.upstash.io; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.gpteng.co; style-src 'self' 'unsafe-inline'; img-src 'self' data:;" },
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; connect-src 'self' https://marden-audit-backend-se9t.vercel.app https://marden-audit-backend-se9t-1teaqx7gb-leo-corbetts-projects.vercel.app https://marden-audit-backend-se9t-61sif2zde-leo-corbetts-projects.vercel.app https://marden-audit-backend-se9t-exw5mljb9-leo-corbetts-projects.vercel.app https://marden-audit-backend-se9t-75xo0n4e5-leo-corbetts-projects.vercel.app https://*.vercel.app https://smiling-shrimp-21387.upstash.io:6379 https://smiling-shrimp-21387.upstash.io; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.gpteng.co; style-src 'self' 'unsafe-inline'; img-src 'self' data:;" },
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
         { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
       ]
