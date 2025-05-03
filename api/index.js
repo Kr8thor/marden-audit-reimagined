@@ -1,85 +1,78 @@
-// Combined index and audit endpoints for Vercel serverless function
-const { generateAudit } = require('./generate-audit');
+const express = require('express');
+const axios = require('axios');
+const {  isValidURL, normalizeURL } = require('./lib/utils');
+const redis = require('./lib/redis');
+const { getLinks } = require('./lib/scraper');
 
+const app = express();
 
-module.exports = async (req, res) => {
-  // Enable CORS
-  const allowedOrigins = ['https://audit.mardenseo.com', 'http://localhost:3000'];
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
-  res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Origin, Cache-Control');
+app.use(express.json());
 
-
-  // Handle OPTIONS request
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  
-  // For debugging - log the request details
-  console.log('Request URL:', req.url);
-  console.log('Request Method:', req.method);
-  console.log('Request Headers:', req.headers);
-  
-  // POST requests are for audit
-  if (req.method === 'POST') {
+// Health Check Endpoint
+app.get('/health', async (req, res) => {
     try {
-      // Extract URL from request body with extra safety checks
-      let requestBody = req.body;
-      let url = null;
-      
-      // Handle different body formats
-      if (requestBody) {
-        if (typeof requestBody === 'object') {
-          url = requestBody.url;
-        } else if (typeof requestBody === 'string') {
-          try {
-            const parsed = JSON.parse(requestBody);
-            url = parsed.url;
-          } catch (e) {
-            console.error('Failed to parse string body:', e);
-          }
-        }
-      }
-      
-      console.log('Extracted URL:', url);
-      
-      // Validate URL
-      if (!url) {
-        return res.status(400).json({
-          status: 'error',
-          message: 'URL is required',
-        });
-      }
-
-      const auditResult = await generateAudit(url);
-      
-      // Set explicit content type
-      res.setHeader('Content-Type', 'application/json');
-      
-      // Return success response with actual audit data
-      return res.status(200).json(auditResult);
+    const redisStatus = await redis.ping();
+    res.json({
+      status: 'ok',
+      message: 'API is running. Axios is installed.',
+      redis: redisStatus ? 'ok' : 'down',
+      endpoints: {
+        health: '/api/health',
+        basic: '/api/basic-audit?url=example.com',
+        seo: '/api/seo-analyze?url=example.com',
+        real: '/api/real-seo-audit?url=example.com',
+      },
+      timestamp: new Date().toISOString(),
+    });
     } catch (error) {
-      // Handle errors
-      console.error('Error handling audit request:', error);
-      
-      return res.status(500).json({
-        status: 'error',
-        message: 'Failed to process audit request',
-        error: error.message,
-      });
+    console.error('Error during health check:', error);
+    res.status(500).json({ message: 'Internal Server Error during health check' });  }
+});
+
+// Audit Page Endpoint
+app.post('/audit/page', async (req, res) => {
+    const { url } = req.body;
+
+    // Input Validation
+    if (!url) {
+        return res.status(400).json({ message: 'URL is required.' });
     }
-  }
-  
-  // GET requests return API status
-  return res.status(200).json({
-    status: 'ok',
-    message: 'Marden SEO Audit API is running',
-    timestamp: new Date().toISOString(),
-    version: '1.0.0',
-    note: 'POST to this same endpoint to run an audit with {"url":"your-website.com"}'
-  });
-};
+
+    if (!isValidURL(url)) {
+        return res.status(400).json({ message: 'Invalid URL format.' });
+    }
+
+    const sanitizedUrl = normalizeURL(url);
+
+    try {
+        // Check Redis Cache
+        const cachedResult = await redis.get(`seo-audit:${sanitizedUrl}`);
+        if (cachedResult) {
+            return res.json(JSON.parse(cachedResult));
+        }
+
+        // Call /api/real-seo-audit
+        const auditResponse = await axios.post('https://marden-audit-backend-se9t-aaydcb4x1-leo-corbetts-projects.vercel.app/api/real-seo-audit', {
+            url: sanitizedUrl,
+        });
+
+        const auditResult = auditResponse.data;
+
+        // Store in Redis
+        await redis.set(`seo-audit:${sanitizedUrl}`, JSON.stringify(auditResult), { ex: 86400 }); // 24 hours
+
+        // Return Result
+        res.json(auditResult);
+    } catch (error) {
+        console.error('Error during audit:', error);
+         if (error.response) {
+          return res.status(error.response.status).json({ message: error.response.data.message || 'Error from real-seo-audit service.' });
+        } else if (error.request) {
+          return res.status(500).json({ message: 'No response received from real-seo-audit service.' });
+        } else {
+          return res.status(500).json({ message: 'Error setting up request to real-seo-audit service.' });
+        }
+    }
+});
+
+module.exports = app;

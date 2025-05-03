@@ -1,12 +1,13 @@
-import jobQueue from '../queue/job-queue.js';
-import Crawler from '../../utils/crawler.js';
-import seoAnalyzer from '../../analyzers/index.js';
-import reportGenerator from '../../reporters/report-generator.js';
+import jobQueue from '../queue/job-queue.mjs';
+import Crawler from '../../utils/crawler.mjs';
+import seoAnalyzer from '../../analyzers/index.mjs';
+import reportGenerator from '../../reporters/report-generator.mjs';
 import config from '../../config/index.js';
-import logger from '../../utils/logger.js';
+import logger from '../../utils/logger.mjs';
 
 /**
  * Worker service for processing audit jobs
+ * @class AuditWorker
  */
 class AuditWorker {
   constructor() {
@@ -14,6 +15,12 @@ class AuditWorker {
     this.currentJobs = new Map();
     this.interval = null;
   }
+
+
+  
+  
+  
+  
   
   /**
    * Start the worker service
@@ -31,7 +38,7 @@ class AuditWorker {
       interval: config.queue.processingInterval,
       batchSize: config.queue.batchSize,
     });
-    
+
     // Set up periodic job processing
     this.interval = setInterval(
       () => this.processNextBatch(),
@@ -91,12 +98,20 @@ class AuditWorker {
       
       // Get next batch of jobs
       const jobIds = await jobQueue.getNextBatch(availableSlots);
+      let failedJob = false;
       
       if (jobIds.length === 0) {
         logger.debug('No jobs in queue');
-        return;
+        // Add a small delay if there are no jobs to avoid a tight loop
+        await new Promise(resolve => setTimeout(resolve, 1000));
+         return;
       }
+      const totalJobs = jobIds.length
       
+      if (totalJobs < availableSlots){
+          logger.warn(`Queue has ${jobIds.length} jobs, but ${availableSlots} slots available`)
+      }
+
       logger.info(`Processing ${jobIds.length} job(s)`, { jobIds });
       
       // Process each job in parallel
@@ -111,16 +126,24 @@ class AuditWorker {
         // Process the job
         const jobPromise = this.processJob(jobId).catch(error => {
           logger.error(`Job ${jobId} failed:`, error);
+          failedJob = true;
           return jobQueue.failJob(jobId, error);
-        });
         
         // Track the job with timeout
         const promise = Promise.race([jobPromise, timeoutPromise])
           .finally(() => {
             // Remove job from tracking once completed
+            if(failedJob) {
+              logger.warn('Job failed, adding delay before processing the next batch')
+              // Add a small delay if there are no jobs to avoid a tight loop
+               new Promise(resolve => setTimeout(resolve, 1000)).then(() => {
+                failedJob = false;
+               })
+            }
             this.currentJobs.delete(jobId);
           });
         
+        }
         this.currentJobs.set(jobId, promise);
       }
     } catch (error) {
@@ -143,7 +166,7 @@ class AuditWorker {
       if (!job) {
         throw new Error(`Job ${jobId} not found`);
       }
-      
+
       // Update status to processing
       await jobQueue.updateJob(jobId, {
         status: 'processing',
@@ -162,7 +185,7 @@ class AuditWorker {
       logger.info(`Job ${jobId} completed successfully`);
     } catch (error) {
       logger.error(`Error processing job ${jobId}:`, error);
-      await jobQueue.failJob(jobId, error);
+      await jobQueue.failJob(jobId, error)
       
       // Remove from processing queue
       await jobQueue.removeFromProcessing(jobId);
@@ -219,18 +242,16 @@ class AuditWorker {
       includeDetails: options.includeDetails !== false,
     });
     
-    // Complete the job with results
     await jobQueue.completeJob(job.id, {
-      report,
+      report, // Contains analysis results and other report information
+      crawlResults, // Contains the raw crawl data
+      analysisResults, // Contains specific analysis results (may be redundant with report)
       stats: {
         pagesScanned: crawlResults.pagesVisited,
         crawlDuration: crawlResults.duration,
-        analysisTimestamp: analysisResults.timestamp,
-      },
+        analysisTimestamp: analysisResults.timestamp
+      }
     });
-    
-    // Remove from processing queue
-    await jobQueue.removeFromProcessing(job.id);
   }
   
   /**
@@ -285,7 +306,7 @@ class AuditWorker {
     
     // Complete the job with results
     await jobQueue.completeJob(job.id, {
-      analysis: analysisResults,
+      pageData,
       stats: {
         crawlDuration: crawlResults.duration,
         analysisTimestamp: analysisResults.timestamp,
