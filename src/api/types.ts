@@ -81,6 +81,19 @@ export interface SeoAnalysisResponse {
 }
 
 /**
+ * Response from batch SEO analysis endpoint
+ */
+export interface BatchSeoAnalysisResponse {
+  status: 'ok' | 'error' | 'success';
+  message: string;
+  totalUrls: number;
+  cached?: boolean;
+  cachedAt?: string;
+  timestamp?: string;
+  results: SeoAnalysisResult[];
+}
+
+/**
  * Updated SEO analysis results data structure
  */
 export interface SeoAnalysisResult {

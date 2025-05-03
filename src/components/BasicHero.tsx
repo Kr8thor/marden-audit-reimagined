@@ -145,6 +145,9 @@ const BasicHero = () => {
                 </div>
                 <div className="text-xs text-muted-foreground mt-2 text-center">
                   Quick Audit analyzes a single page • Site Audit crawls up to 20 pages on your website
+                  <span className="block mt-1">
+                    Need to audit multiple separate URLs? <a href="/batch-audit" className="text-primary hover:underline">Try Batch Audit</a>
+                  </span>
                 </div>
               </div>
               

@@ -283,6 +283,140 @@ const apiClient = {
   },
 
   /**
+   * Batch analyze multiple URLs
+   * @param urls Array of URLs to analyze
+   * @returns Promise with batch analysis results
+   */
+  batchSeoAnalysis: async (urls: string[]): Promise<BatchSeoAnalysisResponse> => {
+    console.log(`Performing batch SEO analysis for ${urls.length} URLs`);
+    
+    if (!urls || urls.length === 0) {
+      throw new Error('At least one URL is required for batch analysis');
+    }
+    
+    // Normalize URLs and validate them
+    const normalizedUrls = urls.map(url => {
+      const normalizedUrl = normalizeUrl(url);
+      if (!isValidUrl(normalizedUrl)) {
+        throw new Error(`Invalid URL format: ${url}`);
+      }
+      return normalizedUrl;
+    });
+    
+    // Limit to 20 URLs
+    const limitedUrls = normalizedUrls.slice(0, 20);
+    console.log(`Processing ${limitedUrls.length} URLs (limit: 20)`);
+    
+    // Use AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout for batch
+    
+    // Try the batch endpoint first
+    try {
+      console.log(`Trying batch SEO analyze endpoint: ${API_BASE_URL}/batch-audit`);
+      
+      const response = await fetch(`${API_BASE_URL}/batch-audit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store'
+        },
+        body: JSON.stringify({ 
+          urls: limitedUrls,
+          timestamp: new Date().getTime() // Add timestamp to prevent caching
+        }),
+        credentials: 'omit', // Try without cookies
+        mode: 'cors',
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        return await handleResponse<BatchSeoAnalysisResponse>(response);
+      }
+      
+      console.log(`Batch endpoint failed with status ${response.status}, trying alternative approach...`);
+    } catch (error: any) {
+      console.warn(`Error with batch endpoint:`, error);
+      if (error.name === 'AbortError') {
+        console.log('Batch request timed out, trying alternative approach');
+      }
+      clearTimeout(timeoutId);
+    }
+    
+    // Try alternative endpoints
+    try {
+      console.log(`Trying alternative endpoint: ${API_BASE_URL}/api/batch-audit`);
+      
+      const altController = new AbortController();
+      const altTimeoutId = setTimeout(() => altController.abort(), 60000);
+      
+      const response = await fetch(`${API_BASE_URL}/api/batch-audit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store'
+        },
+        body: JSON.stringify({ 
+          urls: limitedUrls,
+          timestamp: new Date().getTime()
+        }),
+        credentials: 'omit',
+        mode: 'cors',
+        signal: altController.signal
+      });
+      
+      clearTimeout(altTimeoutId);
+      
+      if (response.ok) {
+        return await handleResponse<BatchSeoAnalysisResponse>(response);
+      }
+      
+      console.log(`Alternative batch endpoint also failed, using fallback analysis`);
+    } catch (error) {
+      console.warn(`Error with alternative batch endpoint:`, error);
+    }
+    
+    // Fallback to individual analysis if batch endpoint fails
+    console.log('All batch endpoints failed, using fallback of sequential individual analyses');
+    
+    // Process urls one by one
+    const results: SeoAnalysisResult[] = [];
+    
+    for (const url of limitedUrls) {
+      try {
+        console.log(`Processing individual URL: ${url}`);
+        const result = await apiClient.quickSeoAnalysis(url);
+        results.push(result.data);
+      } catch (error) {
+        console.error(`Error analyzing ${url}:`, error);
+        // Add error result
+        results.push({
+          url,
+          score: 0,
+          status: 'error',
+          error: {
+            type: 'analysis_error',
+            message: `Failed to analyze URL: ${(error as Error).message || 'Unknown error'}`
+          },
+          analyzedAt: new Date().toISOString()
+        } as SeoAnalysisResult);
+      }
+    }
+    
+    // Return batch result with individual analyses
+    return {
+      status: 'success',
+      message: 'Batch analysis completed (fallback to individual analyses)',
+      totalUrls: results.length,
+      timestamp: new Date().toISOString(),
+      cached: false,
+      results
+    };
+  },
+  
+  /**
    * Perform SEO analysis with comprehensive fallback strategy
    * @param url URL to analyze
    * @returns Promise with analysis results
@@ -507,32 +641,47 @@ const apiClient = {
    * @returns Job creation response or direct analysis result
    */
   submitSiteAudit: async (url: string, options: any = {}): Promise<JobCreationResponse> => {
-    // Try the site-wide audit endpoint first
-    try {
-      console.log('Trying site-wide audit endpoint');
-      const normalizedUrl = normalizeUrl(url);
-      
-      const response = await fetch(`${API_BASE_URL}/submit-site-audit`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          url: normalizedUrl,
-          ...options 
-        }),
-        // Shorter timeout for job submission
-        signal: AbortSignal.timeout(5000)
-      });
-      
-      if (response.ok) {
-        return await handleResponse<JobCreationResponse>(response);
+    // Try multiple site-wide audit endpoints first
+    const siteEndpoints = [
+      `${API_BASE_URL}/submit-site-audit`,
+      `${API_BASE_URL}/api/submit-site-audit`,
+      `${API_BASE_URL}/api/site-audit`
+    ];
+    
+    for (const endpoint of siteEndpoints) {
+      try {
+        console.log(`Trying site-wide audit endpoint: ${endpoint}`);
+        const normalizedUrl = normalizeUrl(url);
+        
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store'
+          },
+          body: JSON.stringify({ 
+            url: normalizedUrl,
+            options: {
+              maxPages: options.maxPages || 20, // Ensure we request 20 pages
+              depth: options.depth || 3,
+              ...options
+            }
+          }),
+          // Increased timeout for job submission
+          signal: AbortSignal.timeout(10000)
+        });
+        
+        if (response.ok) {
+          console.log(`Site-wide audit submission successful via ${endpoint}`);
+          return await handleResponse<JobCreationResponse>(response);
+        }
+      } catch (error) {
+        console.warn(`Error with site-wide audit endpoint ${endpoint}:`, error);
+        // Continue to next endpoint
       }
-      
-      console.log('Site-wide audit endpoint failed, falling back to page audit');
-    } catch (error) {
-      console.warn('Error with site-wide audit, falling back to page audit:', error);
     }
+    
+    console.log('All site-wide audit endpoints failed, falling back to page audit');
     
     // Fallback to page audit
     return apiClient.submitPageAudit(url, options);

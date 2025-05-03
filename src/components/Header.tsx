@@ -49,6 +49,7 @@ const Header = () => {
             <a href="#features" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors" onClick={(e) => { e.preventDefault(); document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' }); }}>Features</a>
             <a href="#audit-process" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors" onClick={(e) => { e.preventDefault(); document.getElementById('audit-process')?.scrollIntoView({ behavior: 'smooth' }); }}>How It Works</a>
             <a href="#why-free" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors" onClick={(e) => { e.preventDefault(); document.getElementById('why-free')?.scrollIntoView({ behavior: 'smooth' }); }}>Why Free</a>
+            <a href="/batch-audit" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors">Batch Audit</a>
           </nav>
           <AnimatedButton 
             variant="primary" 
