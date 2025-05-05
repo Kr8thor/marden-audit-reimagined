@@ -1,96 +1,124 @@
-# MardenSEO Audit Frontend
+# Marden SEO Audit Tool - Frontend
 
-This is the frontend application for MardenSEO Audit tool, a comprehensive SEO analysis tool designed to provide actionable insights for website optimization.
+This repository contains the frontend for the Marden SEO Audit Tool, built with React, Vite, and Tailwind CSS.
 
 ## Features
 
-- Modern UI built with React, TypeScript, and TailwindCSS
-- Responsive design for all device sizes
-- Real-time SEO auditing
-- Interactive visualizations
-- Actionable SEO recommendations
+- Single page SEO analysis
+- Batch analysis for multiple URLs
+- Site-wide crawling and analysis
+- Modern, responsive UI
+- Optimized for Railway deployment
 
-## Tech Stack
+## Local Development
 
-- React + TypeScript
-- Vite for fast development and optimized builds
-- TailwindCSS for styling
-- Shadcn UI components
-- Lucide React for icons
-- Recharts for data visualization
+1. **Installation**
 
-## Getting Started
+```bash
+# Clone the repository
+git clone https://github.com/Kr8thor/marden-audit-reimagined.git
+cd marden-audit-reimagined
+
+# Install dependencies
+npm install
+```
+
+2. **Environment Setup**
+
+Create a `.env` file based on `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+Edit the `.env` file to point to your backend API:
+
+```
+VITE_API_URL=http://localhost:3000
+PORT=9090
+NODE_ENV=development
+```
+
+3. **Start the development server**
+
+```bash
+npm run dev
+```
+
+This will start the Vite development server.
+
+4. **Build for production**
+
+```bash
+npm run build
+```
+
+This will create a production build in the `dist` directory.
+
+## Deployment on Railway
 
 ### Prerequisites
 
-- Node.js 16+
-- npm or yarn
+- [Railway CLI](https://docs.railway.app/develop/cli) installed
+- Railway account
 
-### Installation
+### Steps
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/Kr8thor/marden-audit-reimagined.git
-   cd marden-audit-reimagined
-   ```
+1. **Login to Railway**
 
-2. Install dependencies:
-   ```
-   npm install
-   ```
+```bash
+railway login
+```
 
-3. Configure environment variables:
-   - Create a `.env` file based on `.env.example`
-   - Set `VITE_API_URL` to point to your backend API
+2. **Initialize a new project (first time only)**
 
-4. Start the development server:
-   ```
-   npm run dev
-   ```
+```bash
+railway init
+```
 
-5. Build for production:
-   ```
-   npm run build
-   ```
+3. **Link existing project (if already created)**
 
-## Deployment to Vercel
+```bash
+railway link
+```
 
-### Setup
+4. **Set environment variables**
 
-1. Push your code to GitHub
+Set the following environment variables in the Railway dashboard:
 
-2. Create a new project in Vercel
-   - Connect your GitHub repository
-   - Set the framework preset to Vite
-   - Configure the following settings:
-     - Build Command: `npm run build`
-     - Output Directory: `dist`
-     - Install Command: `npm install`
+- `VITE_API_URL`: URL of the backend API (e.g., https://marden-audit-backend-production.up.railway.app)
+- `PORT`: 9090
+- `NODE_ENV`: production
 
-3. Environment Variables
-   - Add `VITE_API_URL` environment variable pointing to your backend API
-   - For a combined deployment, you can use `/api` as the value
+5. **Deploy**
 
-4. Deploy
+```bash
+railway up
+```
 
-### Production Optimizations
+6. **Verify Deployment**
 
-- Enable Vercel Edge Network for global CDN
-- Configure custom domain (e.g., audit.mardenseo.com)
-- Set up Vercel Analytics for monitoring
+Navigate to your Railway dashboard to confirm successful deployment.
 
-## Connecting with Backend
+## Integration with Backend
 
-This frontend is designed to work with the MardenSEO Audit Backend. When deploying both to Vercel:
+The frontend integrates with the Marden SEO Audit Tool backend API for performing SEO analysis. It expects the following endpoints:
 
-1. Deploy both repositories to Vercel
-2. In the frontend project settings, add the backend as a Linked Project
-3. Configure the `VITE_API_URL` environment variable to point to `/api`
-4. Ensure proper CORS settings in the backend
+- `/health` - Health check endpoint
+- `/seo-analyze` - Single page SEO analysis
+- `/basic-audit` - Alias for SEO analysis
+- `/batch-audit` - For analyzing multiple URLs
 
-## Development Notes
+The frontend API client in `src/api/client.ts` includes fallback mechanisms for graceful degradation when endpoints are unavailable.
 
-- All API calls are made through the API client in `src/api/client.ts`
-- The main audit functionality is in the `useAudit` hook
-- Update API endpoints in the client if your backend routes differ
-"# Update timestamp: $(date)"  
+## Directory Structure
+
+- `src/components` - React components
+- `src/pages` - Page components
+- `src/api` - API client and types
+- `src/hooks` - Custom React hooks
+- `src/lib` - Utility functions and shared code
+
+## License
+
+Proprietary - All rights reserved
