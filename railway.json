@@ -8,12 +8,16 @@
     "startCommand": "node server.js",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 60,
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 3,
+    "restartPolicyType": "ALWAYS",
+    "restartPolicyMaxRetries": 10,
     "envs": [
       {
         "name": "VITE_API_URL",
         "value": "https://marden-audit-backend-production.up.railway.app"
+      },
+      {
+        "name": "VITE_API_FALLBACK_URL",
+        "value": "https://marden-seo-audit-api.vercel.app"
       },
       {
         "name": "PORT",

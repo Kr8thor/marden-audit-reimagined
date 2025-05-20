@@ -1,13 +1,28 @@
 #!/bin/bash
 
-# Configuration
+# Configuration for direct deployment
 DOMAIN="audit.mardenseo.com"
 USER="mardenseo"
 REMOTE_SERVER="mardenseo.com"
 REMOTE_PATH="/var/www/audit.mardenseo.com"
 
-# Build the project
-echo "Building the project..."
+# Railway deployment section
+if [[ "$1" == "--railway" ]]; then
+  echo "Deploying to Railway..."
+  
+  # NOTE: Before running this script with --railway, you must manually run:
+  # 1. railway login
+  # 2. railway init (if this is the first deployment)
+  # 3. railway link (if the project is already created)
+  
+  # Deploy to Railway
+  railway up
+  echo "Railway deployment completed!"
+  exit 0
+fi
+
+# Traditional server deployment
+echo "Building the project for server deployment..."
 npm run build
 
 # Check if build was successful
