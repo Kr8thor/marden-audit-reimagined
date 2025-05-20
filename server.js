@@ -10,21 +10,51 @@ const __dirname = path.dirname(__filename);
 
 // Read API URL from .env file
 let apiUrl = 'Not found in .env file';
+let apiFallbackUrl = 'Not found in .env file';
 try {
   const envFile = fs.readFileSync(path.join(__dirname, '.env'), 'utf8');
-  const match = envFile.match(/VITE_API_URL=(.+)/);
-  if (match && match[1]) {
-    apiUrl = match[1];
+  const apiMatch = envFile.match(/VITE_API_URL=(.+)/);
+  if (apiMatch && apiMatch[1]) {
+    apiUrl = apiMatch[1];
+  }
+  
+  const fallbackMatch = envFile.match(/VITE_API_FALLBACK_URL=(.+)/);
+  if (fallbackMatch && fallbackMatch[1]) {
+    apiFallbackUrl = fallbackMatch[1];
   }
 } catch (err) {
   console.error('Error reading .env file:', err);
 }
 
 const app = express();
-const port = process.env.PORT || 8081;
+const port = process.env.PORT || 9090;
 
 // Enable CORS for all requests
 app.use(cors());
+
+// Add basic request logging
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
+// Add health check endpoint
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'Marden SEO Audit Frontend is operational',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    api: {
+      primary: apiUrl,
+      fallback: apiFallbackUrl
+    },
+    server: {
+      port: port,
+      staticPath: path.join(__dirname, 'dist')
+    }
+  });
+});
 
 // Serve static files from the 'dist' directory
 app.use(express.static(path.join(__dirname, 'dist')));
@@ -36,7 +66,8 @@ app.get('*', (req, res) => {
 
 // Start the server
 app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
-  console.log(`Serving content from: ${path.join(__dirname, 'dist')}`);
-  console.log(`Using API URL from .env: ${apiUrl}`);
+  console.log(`[${new Date().toISOString()}] Server running at http://localhost:${port}`);
+  console.log(`[${new Date().toISOString()}] Serving content from: ${path.join(__dirname, 'dist')}`);
+  console.log(`[${new Date().toISOString()}] Using API URL: ${apiUrl}`);
+  console.log(`[${new Date().toISOString()}] Using Fallback API URL: ${apiFallbackUrl}`);
 });
