@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { analyzeEnhanced } from '../services/enhancedApiService';
+import forceCrawlSite from '../services/forcedCrawlingService';
 import EnhancedAnalysisResults from '../components/EnhancedAnalysisResults';
 
 const EnhancedSeoAnalyzer = () => {
@@ -31,15 +32,26 @@ const EnhancedSeoAnalyzer = () => {
     setError(null);
     
     try {
-      console.log("Starting enhanced analysis for: ", processedUrl, options);
-      const results = await analyzeEnhanced(processedUrl, options);
+      console.log("Starting analysis for: ", processedUrl);
+      
+      let results;
+      
+      // Use forced crawling for site crawls
+      if (options.crawlSite) {
+        console.log("Using FORCED crawling service to prevent mock data");
+        results = await forceCrawlSite(processedUrl, options);
+      } else {
+        console.log("Using regular enhanced analysis");
+        results = await analyzeEnhanced(processedUrl, options);
+      }
+      
       console.log("Analysis results:", results);
       setAnalysisResults(results);
     } catch (err) {
       console.error('Analysis failed:', err);
-      setError(err.response?.data?.message ? 
-        { message: err.response.data.message } : 
-        { message: err.message || 'An error occurred during analysis' });
+      setError({ 
+        message: `Analysis failed: ${err.message || 'Unknown error'}. Please try again or check the console for details.` 
+      });
     } finally {
       setIsAnalyzing(false);
     }
