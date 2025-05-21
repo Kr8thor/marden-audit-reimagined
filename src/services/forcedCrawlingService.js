@@ -61,10 +61,10 @@ export const forceCrawlSite = async (url, options = {}) => {
   
   console.log(`FORCED CRAWL: Starting site crawl for ${normalizedUrl} with options:`, options);
   
-  // First try the test endpoint to verify API connection
+  // First try the direct test endpoint to verify API connection
   try {
-    console.log('Testing API connection with test endpoint...');
-    const testResponse = await apiClient.post('/test-endpoint', {
+    console.log('Testing API connection with direct-test endpoint...');
+    const testResponse = await apiClient.post('/direct-test', {
       url: normalizedUrl,
       options: {
         test: true,
@@ -72,7 +72,7 @@ export const forceCrawlSite = async (url, options = {}) => {
       }
     });
     
-    console.log('Test endpoint response:', testResponse.data);
+    console.log('Direct test endpoint response:', testResponse.data);
     
     // If test endpoint works, try the actual endpoint
     console.log('Test successful, trying enhanced-seo-analyze endpoint');
