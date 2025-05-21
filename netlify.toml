@@ -1,0 +1,9 @@
+[build]
+  # Skip the build process entirely
+  publish = "public"
+  command = "echo 'Skipping build step'"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
