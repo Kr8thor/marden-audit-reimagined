@@ -61,24 +61,47 @@ export const forceCrawlSite = async (url, options = {}) => {
   
   console.log(`FORCED CRAWL: Starting site crawl for ${normalizedUrl} with options:`, options);
   
-  // Try the site-crawl endpoint
+  // First try the test endpoint to verify API connection
   try {
-    const response = await apiClient.post('/site-crawl', {
+    console.log('Testing API connection with test endpoint...');
+    const testResponse = await apiClient.post('/test-endpoint', {
       url: normalizedUrl,
       options: {
+        test: true,
+        ...options
+      }
+    });
+    
+    console.log('Test endpoint response:', testResponse.data);
+    
+    // If test endpoint works, try the actual endpoint
+    console.log('Test successful, trying enhanced-seo-analyze endpoint');
+    
+    const response = await apiClient.post('/enhanced-seo-analyze', {
+      url: normalizedUrl,
+      options: {
+        siteCrawl: true,
         maxPages: options.maxPages || 5,
         maxDepth: options.maxDepth || 2,
         ...options
       }
     });
     
-    console.log('FORCED CRAWL SUCCESS: Got real data from site-crawl endpoint');
+    console.log('FORCED CRAWL SUCCESS: Got real data from enhanced-seo-analyze endpoint');
     return response.data;
   } catch (error) {
-    console.error('FORCED CRAWL ERROR: site-crawl endpoint failed:', error.message);
+    console.error('FORCED CRAWL ERROR:', error.message);
+    
+    if (error.response) {
+      console.error('Error details:', {
+        status: error.response.status,
+        data: error.response.data,
+        headers: error.response.headers
+      });
+    }
     
     // Throw the error directly instead of falling back to mock data
-    throw new Error(`Site crawl failed: ${error.message}`);
+    throw new Error(`API error: ${error.message}`);
   }
 };
 
