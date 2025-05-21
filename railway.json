@@ -2,27 +2,13 @@
   "schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "npm install && npm run build"
+    "buildCommand": "npm ci && npm run build"
   },
   "deploy": {
-    "startCommand": "node server.js",
+    "startCommand": "node server.cjs",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 60,
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 3,
-    "envs": [
-      {
-        "name": "VITE_API_URL",
-        "value": "https://marden-audit-backend-production.up.railway.app"
-      },
-      {
-        "name": "PORT",
-        "value": "9090"
-      },
-      {
-        "name": "NODE_ENV",
-        "value": "production"
-      }
-    ]
+    "restartPolicyType": "ALWAYS",
+    "restartPolicyMaxRetries": 10
   }
 }
