@@ -1,0 +1,16 @@
+​
+Netlify Build                                                 
+────────────────────────────────────────────────────────────────
+​
+> Version
+  @netlify/build 32.1.4
+​
+> Flags
+  {}
+​
+Configuration error                                           
+────────────────────────────────────────────────────────────────
+​
+  Error message
+  Failed retrieving site data for site glittering-granita-92b678: Not Found. Double-check your login status with 'netlify status' or contact support with details of your error.
+​

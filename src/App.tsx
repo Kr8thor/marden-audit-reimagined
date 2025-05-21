@@ -7,6 +7,8 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import AuditPage from "./pages/AuditPage";
 import BatchAuditPage from "./pages/BatchAuditPage";
+import EnhancedSeoAnalyzer from "./pages/EnhancedSeoAnalyzer";
+import DiagnosticsPage from "./pages/DiagnosticsPage";
 
 const queryClient = new QueryClient();
 
@@ -20,6 +22,8 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/audit/:url" element={<AuditPage />} />
           <Route path="/batch-audit" element={<BatchAuditPage />} />
+          <Route path="/enhanced-analyzer" element={<EnhancedSeoAnalyzer />} />
+          <Route path="/diagnostics" element={<DiagnosticsPage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
