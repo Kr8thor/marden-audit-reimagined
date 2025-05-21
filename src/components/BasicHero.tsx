@@ -139,7 +139,7 @@ const BasicHero = () => {
                       disabled={!url || !!urlError}
                       title="Analyzes up to 20 pages on your site"
                     >
-                      Site Audit (20 pages)
+                      Site Audit
                     </AnimatedButton>
                   </div>
                 </div>

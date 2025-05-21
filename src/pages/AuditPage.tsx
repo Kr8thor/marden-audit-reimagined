@@ -32,12 +32,21 @@ const AuditPage: React.FC = () => {
         // First try site-wide audit to crawl multiple pages
         console.log("Trying site-wide audit first");
         try {
+          console.log("Starting site-wide audit with 20 pages...");
           const siteAuditResult = await apiClient.submitSiteAudit(url, {
             maxPages: 20, // Set to crawl 20 pages as required
-            depth: 3      // Reasonable depth for most sites
+            depth: 3,     // Reasonable depth for most sites
+            auditType: 'site' // Explicitly specify site audit
           });
           
-          console.log("Site-wide audit submitted:", siteAuditResult);
+          console.log("Site-wide audit submitted successfully:", siteAuditResult);
+          
+          // Add toast notification for user feedback
+          toast('Site-wide audit submitted', {
+            description: 'Analyzing up to 20 pages. This may take a moment...',
+            position: 'bottom-right',
+          });
+          
           return siteAuditResult;
         } catch (siteError) {
           console.warn("Site-wide audit failed, falling back to direct analysis:", siteError);

@@ -1,16 +1,59 @@
 @echo off
-REM Deploy script for Marden SEO Audit Frontend to Railway
-
-REM NOTE: Before running this script, you must manually run:
-REM 1. railway login
-REM 2. railway init (if this is the first deployment)
-REM 3. railway link (if the project is already created)
+REM Comprehensive Railway deployment script for Marden SEO Audit Frontend
 
 echo Deploying Marden SEO Audit Frontend to Railway...
-echo Building and preparing for deployment...
+echo ================================================
 
-REM Ensure we're using the production environment
-set NODE_ENV=production
+REM Check if Railway CLI is installed
+where railway >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    echo Railway CLI not found. Please install it with: npm install -g @railway/cli
+    exit /b 1
+)
+
+REM Check Railway login status
+railway whoami >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    echo You are not logged in to Railway. Please run:
+    echo railway login
+    exit /b 1
+)
+
+REM Check if project is linked
+railway environment >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    echo No Railway project linked. Please run one of these commands:
+    echo railway link   (to link to an existing project)
+    echo railway init   (to create a new project)
+    exit /b 1
+)
+
+REM Ensure we're on the right branch
+git checkout main
+REM Check for uncommitted changes
+git status --porcelain
+if %ERRORLEVEL% equ 0 (
+  echo Uncommitted changes detected. Committing...
+  git add .
+  git commit -m "Automated deployment commit"
+)
+
+REM Push to GitHub
+echo Pushing changes to GitHub...
+git push origin main
+
+REM Set Railway environment variables
+echo Setting environment variables...
+railway variables set VITE_API_URL=https://marden-audit-backend-production.up.railway.app NODE_ENV=production
 
 REM Deploy to Railway
+echo Deploying to Railway...
 railway up
+
+echo Frontend deployment complete!
+for /f "tokens=*" %%a in ('railway domain') do set DOMAIN=%%a
+echo Frontend URL: %DOMAIN%
+
+REM Show environment status
+echo Environment status:
+railway status

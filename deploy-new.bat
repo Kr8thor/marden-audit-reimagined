@@ -1,0 +1,16 @@
+@echo off
+echo Deploying Marden SEO Audit Frontend to Railway...
+
+echo Copying Railway environment...
+copy /Y .env.railway .env
+
+echo Building the application...
+call npm run build
+
+echo Creating new service for the frontend...
+railway link --project berserk-manager || echo "Already linked"
+railway up --detach
+
+echo Done! Your frontend should now be deployed.
+echo Checking railway status...
+railway status

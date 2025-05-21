@@ -94,6 +94,105 @@ export interface BatchSeoAnalysisResponse {
 }
 
 /**
+ * Response from site audit endpoint
+ */
+export interface SiteAuditResponse {
+  status: 'ok' | 'error';
+  message: string;
+  url: string;
+  cached?: boolean;
+  cachedAt?: string;
+  timestamp?: string;
+  data: SiteAuditResult;
+}
+
+/**
+ * Site audit result data
+ */
+export interface SiteAuditResult {
+  startUrl: string;
+  baseDomain: string;
+  score: number;
+  status: 'good' | 'needs_improvement' | 'poor' | 'error' | string;
+  
+  siteAnalysis: {
+    averageScore: number;
+    commonIssues: Array<{
+      type: string;
+      frequency: number;
+      severity: string;
+      impact: string;
+      urls: string[];
+      recommendation: string;
+    }>;
+    pages: Array<{
+      url: string;
+      score: number;
+      title: string;
+      status?: string;
+      issues?: number;
+      criticalIssues?: number;
+    }>;
+  };
+  
+  crawlResults?: {
+    pagesDiscovered: number;
+    pagesCrawled: number;
+    pagesFailed: number;
+    maxDepthReached?: number;
+    crawlDuration: number;
+  };
+  
+  siteStructure?: {
+    nodes: Array<{
+      id: string;
+      label: string;
+      title?: string;
+      description?: string;
+      h1?: string;
+    }>;
+    edges: Array<{
+      source: string;
+      target: string;
+    }>;
+  };
+  
+  recommendations?: Array<{
+    priority: string;
+    type: string;
+    description: string;
+    affectedUrls?: string[];
+  }>;
+  
+  pageResults: SeoAnalysisResult[];
+  
+  // Optional flags for different audit types
+  homepageOnly?: boolean;
+  fromSingleAnalysis?: boolean;
+  fromBatchAnalysis?: boolean;
+  manualList?: boolean;
+  
+  // Performance stats
+  stats: {
+    analysisTime: number;
+    pageCount?: number;
+    pageAnalysis?: {
+      totalTime?: number;
+      minTime?: number;
+      maxTime?: number;
+      averageTime?: number;
+    };
+  };
+  
+  error?: {
+    message: string;
+    details?: string;
+  };
+  
+  timestamp: string;
+}
+
+/**
  * Updated SEO analysis results data structure
  */
 export interface SeoAnalysisResult {

@@ -11,8 +11,32 @@ import {
   SeoAnalysisResponse
 } from './types';
 
-// Backend API URL - will use environment variable in production
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+// Backend API URLs
+const PRIMARY_API_URL = import.meta.env.VITE_API_URL || 'https://marden-audit-backend-production.up.railway.app';
+const FALLBACK_API_URL = import.meta.env.VITE_API_FALLBACK_URL || 'http://localhost:3000';
+let API_BASE_URL = PRIMARY_API_URL;
+let apiFailedAttempts = 0;
+const MAX_FAILURES_BEFORE_FALLBACK = 3;
+
+// Switch to fallback API after consistent failures
+const switchToFallbackApiIfNecessary = () => {
+  apiFailedAttempts++;
+  console.log(`API failure count: ${apiFailedAttempts}/${MAX_FAILURES_BEFORE_FALLBACK}`);
+  
+  if (apiFailedAttempts >= MAX_FAILURES_BEFORE_FALLBACK && API_BASE_URL === PRIMARY_API_URL) {
+    console.warn('Switching to fallback API after consistent failures');
+    API_BASE_URL = FALLBACK_API_URL;
+    apiFailedAttempts = 0; // Reset counter for the fallback
+  }
+};
+
+// Reset failure counter on successful API calls
+const resetApiFailureCounter = () => {
+  if (apiFailedAttempts > 0) {
+    console.log('API call succeeded, resetting failure counter');
+    apiFailedAttempts = 0;
+  }
+};
 
 /**
  * Generic function to handle API responses with standardized error processing
@@ -23,18 +47,200 @@ async function handleResponse<T>(response: Response): Promise<T> {
     try {
       const errorData = await response.json();
       console.error('Error Data:', errorData);
+      
+      // Track API failures for potential fallback
+      switchToFallbackApiIfNecessary();
+      
       throw new Error(errorData.message || `Error: ${response.status} ${response.statusText}`);
     } catch (e) {
+      // Track API failures for potential fallback
+      switchToFallbackApiIfNecessary();
+      
       throw new Error(`Error: ${response.status} ${response.statusText}`);
     }
   }
   
   try {
+    // Reset failure counter on success
+    resetApiFailureCounter();
+    
     return await response.json() as T;
   } catch (e) {
     console.error('Error parsing JSON response:', e);
+    
+    // Track API failures for potential fallback
+    switchToFallbackApiIfNecessary();
+    
     throw new Error('Failed to parse API response');
   }
+}
+
+/**
+ * Transform a batch analysis result into a site audit format
+ * @param baseUrl Base URL of the site
+ * @param batchResults Batch analysis results
+ * @returns Transformed site audit response
+ */
+function transformBatchToSiteAudit(baseUrl: string, batchResults: BatchSeoAnalysisResponse): SiteAuditResponse {
+  const normalizedUrl = normalizeUrl(baseUrl);
+  console.log(`Transforming batch results to site audit format for ${normalizedUrl}`);
+  
+  // Extract all issues from results
+  const allIssues: any[] = [];
+  
+  batchResults.results.forEach(result => {
+    if (result.categories) {
+      Object.values(result.categories).forEach(category => {
+        if (category.issues && Array.isArray(category.issues)) {
+          category.issues.forEach((issue: any) => {
+            allIssues.push({
+              url: result.url,
+              ...issue
+            });
+          });
+        }
+      });
+    }
+  });
+  
+  // Group issues by type
+  const issuesByType: Record<string, any[]> = {};
+  allIssues.forEach(issue => {
+    if (!issuesByType[issue.type]) {
+      issuesByType[issue.type] = [];
+    }
+    issuesByType[issue.type].push(issue);
+  });
+  
+  // Calculate frequency
+  const commonIssues = Object.entries(issuesByType)
+    .map(([type, issues]) => ({
+      type,
+      frequency: issues.length,
+      severity: issues[0].severity,
+      impact: issues[0].impact,
+      urls: issues.map(issue => issue.url),
+      recommendation: issues[0].recommendation
+    }))
+    .sort((a, b) => b.frequency - a.frequency);
+  
+  // Calculate overall site score
+  let totalScore = 0;
+  let validScores = 0;
+  
+  batchResults.results.forEach(result => {
+    if (result.score !== undefined && !isNaN(result.score)) {
+      totalScore += result.score;
+      validScores++;
+    }
+  });
+  
+  const averageScore = validScores > 0 ? Math.round(totalScore / validScores) : 0;
+  
+  // Create site audit response
+  return {
+    status: 'ok',
+    message: 'Site audit completed (converted from batch analysis)',
+    url: normalizedUrl,
+    cached: batchResults.cached || false,
+    cachedAt: batchResults.cachedAt,
+    timestamp: new Date().toISOString(),
+    data: {
+      startUrl: normalizedUrl,
+      baseDomain: new URL(normalizedUrl).hostname,
+      score: averageScore,
+      status: averageScore >= 80 ? 'good' : averageScore >= 50 ? 'needs_improvement' : 'poor',
+      siteAnalysis: {
+        averageScore,
+        commonIssues: commonIssues.slice(0, 10), // Top 10 common issues
+        pages: batchResults.results.map(result => ({
+          url: result.url,
+          score: result.score || 0,
+          title: result.pageData?.title?.text || result.pageAnalysis?.title?.text || '',
+          status: result.status || 'unknown',
+          issues: result.totalIssuesCount || 0,
+          criticalIssues: result.criticalIssuesCount || 0
+        }))
+      },
+      pageResults: batchResults.results,
+      fromBatchAnalysis: true,
+      stats: {
+        analysisTime: 0,
+        pageCount: batchResults.results.length
+      },
+      timestamp: new Date().toISOString()
+    }
+  };
+}
+
+/**
+ * Transform a single page analysis into a site audit format
+ * @param baseUrl Base URL of the site
+ * @param singleResult Single page analysis
+ * @returns Transformed site audit response
+ */
+function transformSingleToSiteAudit(baseUrl: string, singleResult: SeoAnalysisResponse): SiteAuditResponse {
+  const normalizedUrl = normalizeUrl(baseUrl);
+  console.log(`Transforming single page result to site audit format for ${normalizedUrl}`);
+  
+  // Extract issues from the result
+  const allIssues: any[] = [];
+  
+  if (singleResult.data.categories) {
+    Object.values(singleResult.data.categories).forEach(category => {
+      if (category.issues && Array.isArray(category.issues)) {
+        category.issues.forEach((issue: any) => {
+          allIssues.push({
+            url: singleResult.url,
+            ...issue
+          });
+        });
+      }
+    });
+  }
+  
+  // Create site audit response
+  return {
+    status: 'ok',
+    message: 'Site audit completed (homepage only)',
+    url: normalizedUrl,
+    cached: singleResult.cached || false,
+    cachedAt: singleResult.cachedAt,
+    timestamp: new Date().toISOString(),
+    data: {
+      startUrl: normalizedUrl,
+      baseDomain: new URL(normalizedUrl).hostname,
+      score: singleResult.data.score || 0,
+      status: singleResult.data.status || 'unknown',
+      siteAnalysis: {
+        averageScore: singleResult.data.score || 0,
+        commonIssues: allIssues.map(issue => ({
+          type: issue.type,
+          frequency: 1,
+          severity: issue.severity,
+          impact: issue.impact,
+          urls: [singleResult.url],
+          recommendation: issue.recommendation
+        })),
+        pages: [{
+          url: singleResult.data.url,
+          score: singleResult.data.score || 0,
+          title: singleResult.data.pageData?.title?.text || singleResult.data.pageAnalysis?.title?.text || '',
+          status: singleResult.data.status || 'unknown',
+          issues: singleResult.data.totalIssuesCount || 0,
+          criticalIssues: singleResult.data.criticalIssuesCount || 0
+        }]
+      },
+      pageResults: [singleResult.data],
+      homepageOnly: true,
+      fromSingleAnalysis: true,
+      stats: {
+        analysisTime: 0,
+        pageCount: 1
+      },
+      timestamp: new Date().toISOString()
+    }
+  };
 }
 
 /**
@@ -638,6 +844,234 @@ const apiClient = {
    * Submit a site audit, with fallback mechanisms
    * @param url URL to analyze
    * @param options Analysis options
+   * @returns Promise with site audit results
+   */
+  siteAudit: async (url: string, options: any = {}): Promise<SiteAuditResponse> => {
+    console.log(`Performing site audit for ${url} with options:`, options);
+    
+    if (!url || url.trim() === '') {
+      throw new Error('URL is required for site audit');
+    }
+    
+    const normalizedUrl = normalizeUrl(url);
+    
+    if (!isValidUrl(normalizedUrl)) {
+      throw new Error('Invalid URL format');
+    }
+    
+    // Configure options with defaults
+    const auditOptions = {
+      maxPages: Math.min(options.maxPages || 5, 10), // More conservative limits for Railway
+      maxDepth: Math.min(options.maxDepth || 2, 3),  // More conservative limits for Railway
+      respectRobots: options.respectRobots !== false,
+      skipCrawl: options.skipCrawl || false,
+      customPages: options.customPages || [],
+      timestamp: Date.now() // Add timestamp to prevent caching
+    };
+    
+    console.log(`Using configured options:`, auditOptions);
+    
+    // Use AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 1 minute timeout (reduced)
+    
+    // Try the site audit endpoints with improved logging
+    const siteEndpoints = [
+      `${API_BASE_URL}/site-audit`,
+      `${API_BASE_URL}/api/site-audit`,
+      `${API_BASE_URL}/v2/site-audit`
+    ];
+    
+    for (const endpoint of siteEndpoints) {
+      try {
+        console.log(`Trying site audit endpoint: ${endpoint}`);
+        
+        // Log the full request details for debugging
+        const requestBody = {
+          url: normalizedUrl,
+          ...auditOptions
+        };
+        console.log(`Request body for ${endpoint}:`, JSON.stringify(requestBody));
+        
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store'
+          },
+          body: JSON.stringify(requestBody),
+          credentials: 'omit',
+          mode: 'cors',
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+          console.log(`Site audit successful via ${endpoint}`);
+          return await handleResponse<SiteAuditResponse>(response);
+        }
+        
+        // Log more details about the failed response
+        console.log(`Endpoint ${endpoint} failed with status ${response.status}, status text: ${response.statusText}`);
+        try {
+          const errorText = await response.text();
+          console.log(`Error response body:`, errorText);
+        } catch (e) {
+          console.log(`Could not read error response body`);
+        }
+      } catch (error: any) {
+        console.warn(`Error with endpoint ${endpoint}:`, error);
+        if (error.name === 'AbortError') {
+          console.log('Request timed out, trying next endpoint');
+        }
+      }
+    }
+    
+    console.log('All site audit endpoints failed, trying fallback methods');
+    
+    // Try different approach - use sequential analysis of multiple pages
+    try {
+      // Determine pages to analyze
+      let pagesToAnalyze: string[] = [];
+      
+      if (options.customPages && options.customPages.length > 0) {
+        // Use custom pages if provided
+        pagesToAnalyze = options.customPages.map((p: string) => normalizeUrl(p));
+        console.log(`Using ${pagesToAnalyze.length} custom pages for fallback analysis`);
+      } else {
+        // Just use the homepage if no custom pages
+        pagesToAnalyze = [normalizedUrl];
+        console.log(`Using homepage only for fallback analysis`);
+      }
+      
+      // Limit number of pages to analyze
+      const limitedPages = pagesToAnalyze.slice(0, auditOptions.maxPages);
+      
+      // Analyze each page sequentially
+      console.log(`Analyzing ${limitedPages.length} pages sequentially...`);
+      const pageResults = [];
+      
+      for (const pageUrl of limitedPages) {
+        try {
+          console.log(`Analyzing page: ${pageUrl}`);
+          const result = await apiClient.quickSeoAnalysis(pageUrl);
+          pageResults.push(result.data);
+        } catch (error) {
+          console.error(`Error analyzing ${pageUrl}:`, error);
+          // Add error result
+          pageResults.push({
+            url: pageUrl,
+            score: 0,
+            status: 'error',
+            error: {
+              message: `Analysis failed: ${(error as Error).message || 'Unknown error'}`
+            }
+          });
+        }
+      }
+      
+      // Calculate overall score
+      let totalScore = 0;
+      let validScores = 0;
+      
+      pageResults.forEach(result => {
+        if (result.score !== undefined && !isNaN(result.score)) {
+          totalScore += result.score;
+          validScores++;
+        }
+      });
+      
+      const averageScore = validScores > 0 ? Math.round(totalScore / validScores) : 0;
+      const status = averageScore >= 80 ? 'good' : averageScore >= 50 ? 'needs_improvement' : 'poor';
+      
+      // Create a custom site audit response with the analyzed pages
+      console.log(`Creating custom site audit response with ${pageResults.length} pages`);
+      
+      // Extract all issues from results for common issues analysis
+      const allIssues: any[] = [];
+      
+      pageResults.forEach(result => {
+        if (result.categories) {
+          Object.values(result.categories).forEach((category: any) => {
+            if (category.issues && Array.isArray(category.issues)) {
+              category.issues.forEach((issue: any) => {
+                allIssues.push({
+                  url: result.url,
+                  ...issue
+                });
+              });
+            }
+          });
+        }
+      });
+      
+      // Group issues by type
+      const issuesByType: Record<string, any[]> = {};
+      allIssues.forEach(issue => {
+        const type = issue.type || 'unknown';
+        if (!issuesByType[type]) {
+          issuesByType[type] = [];
+        }
+        issuesByType[type].push(issue);
+      });
+      
+      // Calculate issue frequency
+      const commonIssues = Object.entries(issuesByType)
+        .map(([type, issues]) => ({
+          type,
+          frequency: issues.length,
+          severity: issues[0]?.severity || 'info',
+          impact: issues[0]?.impact || 'medium',
+          urls: issues.map(issue => issue.url),
+          recommendation: issues[0]?.recommendation || 'Fix this issue to improve SEO'
+        }))
+        .sort((a, b) => b.frequency - a.frequency);
+      
+      // Create the final response
+      return {
+        status: 'ok',
+        message: 'Site audit completed using fallback method',
+        url: normalizedUrl,
+        cached: false,
+        timestamp: new Date().toISOString(),
+        data: {
+          startUrl: normalizedUrl,
+          baseDomain: new URL(normalizedUrl).hostname,
+          score: averageScore,
+          status,
+          siteAnalysis: {
+            averageScore,
+            commonIssues: commonIssues.slice(0, 10), // Top 10 common issues
+            pages: pageResults.map(result => ({
+              url: result.url || normalizedUrl,
+              score: result.score || 0,
+              title: result.pageData?.title?.text || result.pageAnalysis?.title?.text || '',
+              status: result.status || 'unknown',
+              issues: result.totalIssuesCount || 0,
+              criticalIssues: result.criticalIssuesCount || 0
+            }))
+          },
+          pageResults,
+          fallbackMethod: true,
+          stats: {
+            analysisTime: 0,
+            pageCount: pageResults.length
+          },
+          timestamp: new Date().toISOString()
+        }
+      };
+    } catch (error) {
+      console.error('All fallback methods failed, returning error', error);
+      
+      throw new Error(`Failed to perform site audit: ${(error as Error).message}`);
+    }
+  },
+  
+  /**
+   * Submit a site audit using the job-based API (legacy method)
+   * @param url URL to analyze
+   * @param options Analysis options
    * @returns Job creation response or direct analysis result
    */
   submitSiteAudit: async (url: string, options: any = {}): Promise<JobCreationResponse> => {
@@ -650,7 +1084,7 @@ const apiClient = {
     
     for (const endpoint of siteEndpoints) {
       try {
-        console.log(`Trying site-wide audit endpoint: ${endpoint}`);
+        console.log(`Trying legacy site-wide audit endpoint: ${endpoint}`);
         const normalizedUrl = normalizeUrl(url);
         
         const response = await fetch(endpoint, {
@@ -672,16 +1106,36 @@ const apiClient = {
         });
         
         if (response.ok) {
-          console.log(`Site-wide audit submission successful via ${endpoint}`);
+          console.log(`Legacy site-wide audit submission successful via ${endpoint}`);
           return await handleResponse<JobCreationResponse>(response);
         }
       } catch (error) {
-        console.warn(`Error with site-wide audit endpoint ${endpoint}:`, error);
+        console.warn(`Error with legacy site-wide audit endpoint ${endpoint}:`, error);
         // Continue to next endpoint
       }
     }
     
-    console.log('All site-wide audit endpoints failed, falling back to page audit');
+    console.log('All legacy site-wide audit endpoints failed, falling back to page audit');
+    
+    // Try the new site audit endpoint
+    try {
+      console.log('Trying new site audit endpoint as fallback');
+      const siteAuditResult = await apiClient.siteAudit(url, options);
+      
+      // Convert response to job creation format for compatibility
+      return {
+        status: 'ok',
+        message: 'Site audit completed directly',
+        jobId: 'direct-site-audit',
+        url: normalizeUrl(url),
+        cached: siteAuditResult.cached || false,
+        cachedAt: siteAuditResult.cachedAt,
+        timestamp: new Date().toISOString(),
+        data: siteAuditResult.data
+      };
+    } catch (error) {
+      console.warn('New site audit endpoint also failed, falling back to page audit');
+    }
     
     // Fallback to page audit
     return apiClient.submitPageAudit(url, options);

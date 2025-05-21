@@ -1,16 +1,29 @@
 
 import { useState } from 'react';
-import { Search, Zap, BarChart, Smartphone, Server, FileSearch } from 'lucide-react';
+import { Search, Zap, BarChart, Smartphone, Server, FileSearch, Code, Globe } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface FeatureCardProps {
   icon: React.ReactNode;
   title: string;
   description: string;
   color: string;
+  isNew?: boolean;
+  link?: string;
 }
 
-const FeatureCard = ({ icon, title, description, color }: FeatureCardProps) => {
+const FeatureCard = ({ icon, title, description, color, isNew, link }: FeatureCardProps) => {
   const [isFlipped, setIsFlipped] = useState(false);
+  
+  const handleClick = () => {
+    if (link) {
+      // If there's a link, navigate instead of flipping
+      window.location.href = link;
+    } else {
+      // Otherwise flip the card
+      setIsFlipped(!isFlipped);
+    }
+  };
   
   return (
     <div 
@@ -19,7 +32,7 @@ const FeatureCard = ({ icon, title, description, color }: FeatureCardProps) => {
         transformStyle: 'preserve-3d',
         transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)'
       }}
-      onClick={() => setIsFlipped(!isFlipped)}
+      onClick={handleClick}
     >
       <div 
         className="absolute inset-0 flex flex-col items-center justify-center p-6 backface-hidden"
@@ -28,8 +41,17 @@ const FeatureCard = ({ icon, title, description, color }: FeatureCardProps) => {
         <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-4 ${color}`}>
           {icon}
         </div>
-        <h3 className="text-lg font-semibold mb-2 text-center">{title}</h3>
-        <p className="text-sm text-muted-foreground text-center">Click to learn more</p>
+        <h3 className="text-lg font-semibold mb-2 text-center">
+          {title}
+          {isNew && (
+            <span className="ml-2 px-1.5 py-0.5 text-xs rounded-full bg-gradient-to-r from-neon-purple to-neon-blue text-white">
+              New
+            </span>
+          )}
+        </h3>
+        <p className="text-sm text-muted-foreground text-center">
+          {link ? 'Click to try' : 'Click to learn more'}
+        </p>
       </div>
       
       <div 
@@ -41,6 +63,13 @@ const FeatureCard = ({ icon, title, description, color }: FeatureCardProps) => {
       >
         <h3 className="text-lg font-semibold mb-3">{title}</h3>
         <p className="text-sm text-muted-foreground">{description}</p>
+        {link && (
+          <button 
+            className="mt-4 px-3 py-1 bg-gradient-to-r from-neon-purple to-neon-blue text-white rounded-md text-sm"
+          >
+            Try Now
+          </button>
+        )}
       </div>
     </div>
   );
@@ -62,15 +91,34 @@ const FeatureCards = () => {
     },
     {
       icon: <Smartphone className="h-7 w-7 text-white" />,
-      title: "Mobile UX",
+      title: "Mobile Friendliness",
       description: "In-depth testing of your site's mobile experience, responsive design implementation, and touch-friendly interface elements.",
-      color: "neon-glow-teal"
+      color: "neon-glow-teal",
+      isNew: true,
+      link: "/enhanced"
     },
     {
       icon: <Zap className="h-7 w-7 text-white" />,
       title: "Site Speed",
       description: "Performance analysis to identify bottlenecks and provide actionable recommendations to improve loading times across all devices.",
       color: "neon-glow-purple"
+    },
+    // Added new features
+    {
+      icon: <Code className="h-7 w-7 text-white" />,
+      title: "Schema Validator",
+      description: "Comprehensive analysis of structured data markup to ensure proper implementation and maximize rich snippet opportunities in search results.",
+      color: "neon-glow-green",
+      isNew: true,
+      link: "/enhanced"
+    },
+    {
+      icon: <Globe className="h-7 w-7 text-white" />,
+      title: "Site Crawler",
+      description: "Advanced website crawling with depth analysis to identify structural issues, broken links, and optimization opportunities across your entire site.",
+      color: "neon-glow-orange",
+      isNew: true,
+      link: "/site-audit"
     },
   ];
   
@@ -81,11 +129,11 @@ const FeatureCards = () => {
           <h2 className="text-3xl md:text-4xl font-bold mb-4">Interactive Audit Breakdown</h2>
           <p className="text-lg text-muted-foreground">
             Our comprehensive audit examines every aspect of your site's SEO performance.
-            Click each card to learn more.
+            Click each card to learn more or try our new enhanced features.
           </p>
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {features.map((feature, index) => (
             <FeatureCard 
               key={index}
@@ -93,6 +141,8 @@ const FeatureCards = () => {
               title={feature.title}
               description={feature.description}
               color={feature.color}
+              isNew={feature.isNew}
+              link={feature.link}
             />
           ))}
         </div>

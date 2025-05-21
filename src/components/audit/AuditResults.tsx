@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 interface AuditResultsProps {
   pageAnalysis?: any;
@@ -30,6 +30,21 @@ const AuditResults: React.FC<AuditResultsProps> = ({
   categories,
   data // Added data prop
 }) => {
+  // State for tab selection between single page and site-wide results
+  const [activeTab, setActiveTab] = useState<'page' | 'site'>(siteAnalysis ? 'site' : 'page');
+  
+  // Check if we have site analysis data either directly or in data object
+  const hasSiteAnalysis = siteAnalysis || data?.siteAnalysis || (data?.data?.siteAnalysis);
+  
+  // Extract site pages if available
+  const sitePages = React.useMemo(() => {
+    if (siteAnalysis?.pages) return siteAnalysis.pages;
+    if (data?.siteAnalysis?.pages) return data.siteAnalysis.pages;
+    if (data?.data?.siteAnalysis?.pages) return data.data.siteAnalysis.pages;
+    if (data?.results?.siteAnalysis?.pages) return data.results.siteAnalysis.pages;
+    return [];
+  }, [siteAnalysis, data]);
+  
   // Debug the props we receive to help diagnose issues
   console.log("AuditResults props:", { score, issuesFound, categories });
   
@@ -231,6 +246,24 @@ const AuditResults: React.FC<AuditResultsProps> = ({
         </div>
       </div>
       
+      {/* Tab selector for page vs site analysis */}
+      {hasSiteAnalysis && (
+        <div className="flex mb-4 border-b border-white/10">
+          <button
+            className={`px-4 py-2 text-sm ${activeTab === 'site' ? 'text-primary border-b-2 border-primary' : 'text-white/60 hover:text-white'}`}
+            onClick={() => setActiveTab('site')}
+          >
+            Site Analysis ({sitePages.length || 'Multiple'} Pages)
+          </button>
+          <button
+            className={`px-4 py-2 text-sm ${activeTab === 'page' ? 'text-primary border-b-2 border-primary' : 'text-white/60 hover:text-white'}`}
+            onClick={() => setActiveTab('page')}
+          >
+            Page Analysis
+          </button>
+        </div>
+      )}
+      
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-white/5 rounded-lg p-4 border border-white/10">
           <div className="text-sm text-muted-foreground mb-1">Overall Score</div>
@@ -323,7 +356,8 @@ const AuditResults: React.FC<AuditResultsProps> = ({
         </div>
       </div>
       
-      {pageAnalysis && (
+      {/* Page Analysis Tab Content */}
+      {activeTab === 'page' && pageAnalysis && (
         <div className="mt-6 bg-white/5 rounded-lg p-4 border border-white/10">
           <div className="text-sm font-medium mb-3">Page Content Analysis</div>
           
@@ -462,6 +496,145 @@ const AuditResults: React.FC<AuditResultsProps> = ({
                     </span>
                   </div>
                 </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      
+      {/* Site Analysis Tab Content */}
+      {activeTab === 'site' && hasSiteAnalysis && (
+        <div className="mt-6 space-y-6">
+          {/* Site Overview */}
+          <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+            <div className="text-sm font-medium mb-3">Site Overview</div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="bg-white/5 p-3 rounded">
+                <div className="text-xs text-muted-foreground mb-1">Pages Analyzed</div>
+                <div className="text-lg font-semibold">{sitePages.length}</div>
+              </div>
+              
+              <div className="bg-white/5 p-3 rounded">
+                <div className="text-xs text-muted-foreground mb-1">Average Page Score</div>
+                <div className="text-lg font-semibold gradient-text">
+                  {Math.round(sitePages.reduce((sum, page) => sum + (page.score || 0), 0) / (sitePages.length || 1))}
+                </div>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white/5 p-3 rounded">
+                <div className="text-xs text-muted-foreground mb-1">Pages with H1 Issues</div>
+                <div className="text-lg font-semibold text-yellow-400">
+                  {sitePages.filter(page => 
+                    !page.pageAnalysis?.headings?.h1Count || 
+                    page.pageAnalysis?.headings?.h1Count > 1
+                  ).length}
+                </div>
+              </div>
+              
+              <div className="bg-white/5 p-3 rounded">
+                <div className="text-xs text-muted-foreground mb-1">Pages with Meta Issues</div>
+                <div className="text-lg font-semibold text-yellow-400">
+                  {sitePages.filter(page => 
+                    !page.pageAnalysis?.metaDescription?.text || 
+                    page.pageAnalysis?.metaDescription?.length < 50 ||
+                    page.pageAnalysis?.metaDescription?.length > 160
+                  ).length}
+                </div>
+              </div>
+              
+              <div className="bg-white/5 p-3 rounded">
+                <div className="text-xs text-muted-foreground mb-1">Pages with Title Issues</div>
+                <div className="text-lg font-semibold text-yellow-400">
+                  {sitePages.filter(page => 
+                    !page.pageAnalysis?.title?.text || 
+                    page.pageAnalysis?.title?.length < 30 ||
+                    page.pageAnalysis?.title?.length > 60
+                  ).length}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Pages Table */}
+          <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+            <div className="text-sm font-medium mb-3">Analyzed Pages</div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="text-xs text-left border-b border-white/10">
+                    <th className="py-2 px-3">Page URL</th>
+                    <th className="py-2 px-3 text-center">Score</th>
+                    <th className="py-2 px-3 text-center">Title</th>
+                    <th className="py-2 px-3 text-center">Meta</th>
+                    <th className="py-2 px-3 text-center">H1</th>
+                    <th className="py-2 px-3 text-center">Content</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sitePages.map((page, index) => (
+                    <tr key={index} className="text-xs border-b border-white/5 hover:bg-white/10">
+                      <td className="py-2 px-3 truncate max-w-[200px]">
+                        <a 
+                          href={page.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          {page.url.replace(/^https?:\/\//i, '')}
+                        </a>
+                      </td>
+                      <td className="py-2 px-3 text-center">
+                        <span className={`font-medium px-2 py-1 rounded text-xs ${
+                          page.score >= 80 ? 'bg-green-400/20 text-green-300' : 
+                          page.score >= 50 ? 'bg-yellow-400/20 text-yellow-300' : 
+                          'bg-red-400/20 text-red-300'
+                        }`}>
+                          {page.score}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 text-center">
+                        <span className={`w-2 h-2 inline-block rounded-full ${
+                          page.pageAnalysis?.title?.text && 
+                          page.pageAnalysis?.title?.length >= 30 && 
+                          page.pageAnalysis?.title?.length <= 60 ? 
+                          'bg-green-400' : 'bg-yellow-400'
+                        }`}></span>
+                      </td>
+                      <td className="py-2 px-3 text-center">
+                        <span className={`w-2 h-2 inline-block rounded-full ${
+                          page.pageAnalysis?.metaDescription?.text && 
+                          page.pageAnalysis?.metaDescription?.length >= 50 && 
+                          page.pageAnalysis?.metaDescription?.length <= 160 ? 
+                          'bg-green-400' : 'bg-yellow-400'
+                        }`}></span>
+                      </td>
+                      <td className="py-2 px-3 text-center">
+                        <span className={`w-2 h-2 inline-block rounded-full ${
+                          page.pageAnalysis?.headings?.h1Count === 1 ? 
+                          'bg-green-400' : 
+                          page.pageAnalysis?.headings?.h1Count === 0 ? 
+                          'bg-red-400' : 'bg-yellow-400'
+                        }`}></span>
+                      </td>
+                      <td className="py-2 px-3 text-center">
+                        <span className={`w-2 h-2 inline-block rounded-full ${
+                          page.pageAnalysis?.contentLength >= 300 ? 
+                          'bg-green-400' : 'bg-yellow-400'
+                        }`}></span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            {sitePages.length === 0 && (
+              <div className="text-center py-8 text-white/60">
+                No pages have been analyzed yet.
               </div>
             )}
           </div>

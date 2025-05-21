@@ -50,6 +50,13 @@ const Header = () => {
             <a href="#audit-process" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors" onClick={(e) => { e.preventDefault(); document.getElementById('audit-process')?.scrollIntoView({ behavior: 'smooth' }); }}>How It Works</a>
             <a href="#why-free" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors" onClick={(e) => { e.preventDefault(); document.getElementById('why-free')?.scrollIntoView({ behavior: 'smooth' }); }}>Why Free</a>
             <a href="/batch-audit" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors">Batch Audit</a>
+            <a href="/site-audit" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors">Site Audit</a>
+            <a href="/enhanced" className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors">
+              <span className="inline-flex items-center">
+                Enhanced
+                <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-gradient-to-r from-neon-purple to-neon-blue text-white">New</span>
+              </span>
+            </a>
           </nav>
           <AnimatedButton 
             variant="primary" 

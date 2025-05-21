@@ -1,35 +1,58 @@
 #!/bin/bash
+# Comprehensive Railway deployment script for Marden SEO Audit Frontend
 
-# Configuration
-DOMAIN="audit.mardenseo.com"
-USER="mardenseo"
-REMOTE_SERVER="mardenseo.com"
-REMOTE_PATH="/var/www/audit.mardenseo.com"
+echo "Deploying Marden SEO Audit Frontend to Railway..."
+echo "================================================"
 
-# Build the project
-echo "Building the project..."
-npm run build
-
-# Check if build was successful
-if [ $? -ne 0 ]; then
-  echo "Build failed. Exiting."
-  exit 1
+# Check if Railway CLI is installed
+if ! command -v railway &> /dev/null; then
+    echo "Railway CLI not found. Please install it with: npm install -g @railway/cli"
+    exit 1
 fi
 
-# Create a tarball of the dist directory
-echo "Creating tarball of the dist directory..."
-tar -czf dist.tar.gz -C dist .
+# Check Railway login status
+RAILWAY_LOGIN_STATUS=$(railway whoami 2>&1 || echo "Not logged in")
+if [[ "$RAILWAY_LOGIN_STATUS" == *"Not logged in"* ]]; then
+    echo "You are not logged in to Railway. Please run:"
+    echo "railway login"
+    exit 1
+fi
 
-# Upload to server
-echo "Uploading to $REMOTE_SERVER..."
-scp dist.tar.gz $USER@$REMOTE_SERVER:/tmp/
+# Check if project is linked
+RAILWAY_PROJECT=$(railway environment 2>&1 || echo "No project linked")
+if [[ "$RAILWAY_PROJECT" == *"No project linked"* ]]; then
+    echo "No Railway project linked. Please run one of these commands:"
+    echo "railway link   (to link to an existing project)"
+    echo "railway init   (to create a new project)"
+    exit 1
+fi
+# Ensure we're on the right branch
+git checkout main
 
-# SSH into the server and extract the files
-echo "Extracting files on the server..."
-ssh $USER@$REMOTE_SERVER "mkdir -p $REMOTE_PATH && \
-  rm -rf $REMOTE_PATH/* && \
-  tar -xzf /tmp/dist.tar.gz -C $REMOTE_PATH && \
-  rm /tmp/dist.tar.gz"
+# Check for uncommitted changes
+if [[ $(git status --porcelain) ]]; then
+  echo "Uncommitted changes detected. Committing..."
+  git add .
+  git commit -m "Automated deployment commit"
+fi
 
-echo "Deployment completed successfully."
-echo "Your application is now available at http://$DOMAIN"
+# Push to GitHub
+echo "Pushing changes to GitHub..."
+git push origin main
+
+# Set Railway environment variables
+echo "Setting environment variables..."
+railway variables set \
+  VITE_API_URL=https://marden-audit-backend-production.up.railway.app \
+  NODE_ENV=production
+
+# Deploy to Railway
+echo "Deploying to Railway..."
+railway up
+
+echo "Frontend deployment complete!"
+echo "Frontend URL: $(railway domain)"
+
+# Show environment status
+echo "Environment status:"
+railway status
