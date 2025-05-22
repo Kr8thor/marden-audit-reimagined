@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
-
-import apiClient from '../api/client';
-import CircularProgress from '../components/CircularProgress';
+import robustApiService from '../services/robustApiService';
 import AuditResults from '../components/audit/AuditResults';
 import AuditError from '../components/audit/AuditError';
+import CircularProgress from '../components/CircularProgress';
 
 const AuditPage: React.FC = () => {
   const { url } = useParams<{ url: string }>();
@@ -19,502 +17,203 @@ const AuditPage: React.FC = () => {
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [jobId, setJobId] = useState<string | null>(null);
   const [results, setResults] = useState<any | null>(null);
   const [progress, setProgress] = useState<number>(0);
+  const [analysisType, setAnalysisType] = useState<string>('basic');
   
-  // Submit the URL for analysis or direct SEO analysis
-  const submitAuditQuery = useQuery({
-    queryKey: ['submitAudit', url],
-    queryFn: async () => {
-      if (!url) throw new Error('URL is required');
-      try {
-        // First try site-wide audit to crawl multiple pages
-        console.log("Trying site-wide audit first");
-        try {
-          const siteAuditResult = await apiClient.submitSiteAudit(url, {
-            maxPages: 20, // Set to crawl 20 pages as required
-            depth: 3      // Reasonable depth for most sites
-          });
-          
-          console.log("Site-wide audit submitted:", siteAuditResult);
-          return siteAuditResult;
-        } catch (siteError) {
-          console.warn("Site-wide audit failed, falling back to direct analysis:", siteError);
-          
-          // If site audit fails, fall back to direct SEO analysis as it's faster
-          const analysisResult = await apiClient.quickSeoAnalysis(url);
-          
-          // If we have data from direct analysis, return it immediately
-          if (analysisResult && !analysisResult.error) {
-            console.log("Direct SEO analysis successful:", analysisResult);
-            return { 
-              status: 'ok',
-              jobId: 'direct-analysis',
-              url: url,
-              cached: analysisResult.cached || false,
-              cachedAt: analysisResult.cachedAt,
-              directResults: analysisResult
-            };
-          }
-          
-          // If direct analysis fails too, try the single page job-based approach
-          console.log("Direct SEO analysis failed, trying job-based page audit");
-          return await apiClient.submitPageAudit(url);
-        }
-      } catch (err: any) {
-        console.error('Error submitting audit:', err);
-        throw err;
-      }
-    },
-    enabled: !!url && !jobId && !results,
-    retry: 2
-  });
-  
-  // If we have a job ID, poll for status
-  const jobStatusQuery = useQuery({
-    queryKey: ['jobStatus', jobId],
-    queryFn: async () => {
-      if (!jobId || jobId === 'direct-analysis') throw new Error('Valid job ID is required');
-      return await apiClient.getJobStatus(jobId);
-    },
-    enabled: !!jobId && jobId !== 'direct-analysis' && !results,
-    refetchInterval: 2000, // Poll every 2 seconds
-    retry: 3
-  });
-  
-  // If job is complete, get results
-  const jobResultsQuery = useQuery({
-    queryKey: ['jobResults', jobId],
-    queryFn: async () => {
-      if (!jobId || jobId === 'direct-analysis') throw new Error('Valid job ID is required');
-      return await apiClient.getJobResults(jobId);
-    },
-    enabled: !!jobId && 
-             jobId !== 'direct-analysis' && 
-             !results && 
-             jobStatusQuery.data?.job?.status === 'completed',
-    retry: 2
-  });
-  
-  // Handle different states and responses with improved data normalization
+  // Perform the analysis
   useEffect(() => {
-    // Handle direct SEO analysis or submit response
-    if (submitAuditQuery.data && !results) {
-      console.log("Submit query data received:", submitAuditQuery.data);
-      
-      // Process and normalize result data
-      const processResult = (sourceData: any) => {
-        // Try to locate the actual result data through multiple paths
-        let resultData = sourceData;
-        
-        // If response contains directResults, use that
-        if (sourceData.directResults) {
-          resultData = sourceData.directResults;
-        } 
-        // If response contains data property, use that
-        else if (sourceData.data) {
-          resultData = sourceData.data;
-        }
-        // If response contains results property, use that
-        else if (sourceData.results) {
-          resultData = sourceData.results;
-        }
-        
-        // Extract categories and issues if available (V2 API format)
-        const categories = resultData.categories || {};
-        
-        // Get the data.data property if it exists (nested structure)
-        const innerData = resultData.data || {};
-        
-        // Count issues for display - try different paths
-        const issuesCount = 
-          resultData.totalIssuesCount != null ? resultData.totalIssuesCount :
-          innerData.totalIssuesCount != null ? innerData.totalIssuesCount :
-          resultData.criticalIssuesCount != null ? resultData.criticalIssuesCount :
-          (categories.metadata?.issues?.length || 0) +
-          (categories.content?.issues?.length || 0) +
-          (categories.technical?.issues?.length || 0) +
-          (categories.userExperience?.issues?.length || 0);
-        
-        // Convert v2 data format to pageAnalysis format for display compatibility
-        const pageData = resultData.pageData || innerData.pageData || {};
-        const pageAnalysis = resultData.pageAnalysis || innerData.pageAnalysis || {
-          title: pageData.title || { text: '', length: 0 },
-          metaDescription: pageData.metaDescription || { text: '', length: 0 },
-          headings: pageData.headings || { h1Count: 0, h1Texts: [], h2Count: 0, h2Texts: [] },
-          links: pageData.links || { internalCount: 0, externalCount: 0, totalCount: 0 },
-          images: pageData.images || { withoutAltCount: 0, total: 0 },
-          contentLength: pageData.content?.contentLength || 0
-        };
-        
-        // For V2 API, use metadata from technical section if available
-        if (pageData.technical) {
-          pageAnalysis.canonical = pageData.technical.canonicalUrl || '';
-        }
-        
-        // Properly normalize the score - check multiple paths for the score
-        const score = resultData.score != null ? resultData.score : 
-          innerData.score != null ? innerData.score :
-          categories.content?.score != null ? categories.content.score :
-          categories.metadata?.score !== undefined ? 
-            (categories.metadata.score + (categories.content?.score || 0) + 
-             (categories.technical?.score || 0) + (categories.userExperience?.score || 0)) / 4 : 
-            0;
-        
-        // Create a complete result with all possible data paths
-        return {
-          ...resultData,
-          score: Math.round(score),
-          issuesFound: resultData.issuesFound != null ? resultData.issuesFound : issuesCount,
-          opportunities: resultData.opportunities != null ? resultData.opportunities : Math.ceil(issuesCount / 2),
-          pageAnalysis,
-          siteAnalysis: resultData.siteAnalysis || null,
-          cached: sourceData.cached || resultData.cached || false,
-          cachedAt: sourceData.cachedAt || resultData.cachedAt || new Date().toISOString(),
-          categories, // Include categories if available (V2 API)
-          data: resultData // Include the raw data for direct access
-        };
-      };
-      
-      // Handle direct analysis results
-      if (submitAuditQuery.data.directResults) {
-        console.log("Setting direct analysis results");
-        const processedResults = processResult(submitAuditQuery.data);
-        
-        // Debug the processed results
-        console.log("Processed results:", JSON.stringify(processedResults, null, 2));
-        
-        setResults(processedResults);
-        setIsLoading(false);
-        toast('Analysis completed', {
-          description: 'Results are ready to view',
-          position: 'bottom-right',
-        });
-        return;
-      }
-      
-      // Handle cached result
-      if (submitAuditQuery.data.cached || submitAuditQuery.data.data) {
-        console.log("Setting cached results", submitAuditQuery.data);
-        const processedResults = processResult(submitAuditQuery.data);
-        
-        setResults(processedResults);
-        setIsLoading(false);
-        toast('Retrieved cached results', {
-          description: 'Showing results from cache',
-          position: 'bottom-right',
-        });
-        return;
-      }
-      
-      // Handle job creation
-      if (submitAuditQuery.data.jobId && submitAuditQuery.data.jobId !== 'direct-analysis') {
-        console.log("Setting job ID:", submitAuditQuery.data.jobId);
-        setJobId(submitAuditQuery.data.jobId);
-        toast('Audit started', {
-          description: 'Your page is being analyzed',
-          position: 'bottom-right',
-        });
-        return;
-      }
-      
-      // If we have data but no jobId or cached flag, treat it as direct results
-      if (submitAuditQuery.data.pageAnalysis || 
-          submitAuditQuery.data.pageData || 
-          submitAuditQuery.data.score != null ||
-          submitAuditQuery.data.categories) {
-        console.log("Setting direct results from submit response");
-        const processedResults = processResult(submitAuditQuery.data);
-        
-        setResults(processedResults);
-        setIsLoading(false);
-        toast('Analysis completed', {
-          description: 'Results are ready to view',
-          position: 'bottom-right',
-        });
-        return;
-      }
+    if (!url) {
+      setError('No URL provided for analysis');
+      setIsLoading(false);
+      return;
     }
     
-    // Handle job status
-    if (jobStatusQuery.data && jobStatusQuery.data.job) {
-      console.log("Job status:", jobStatusQuery.data.job);
-      const status = jobStatusQuery.data.job.status;
-      
-      if (status === 'failed') {
-        setError(`Audit failed: ${jobStatusQuery.data.job.error || 'Unknown error'}`);
-        setIsLoading(false);
-      } else if (status === 'completed' && !results) {
-        // Job completed, get results if not already getting them
-        if (!jobResultsQuery.isLoading && !jobResultsQuery.data) {
-          jobResultsQuery.refetch();
-        }
-      }
-    }
-    
-    // Handle job results
-    if (jobResultsQuery.data && !results) {
-      console.log("Job results received:", jobResultsQuery.data);
-      
-      // Process result data to handle differences in API response format
-      const processResult = (sourceData: any) => {
-        // Try to locate the actual result data through multiple paths
-        let resultData = sourceData;
-        
-        // If response contains results property, use that
-        if (sourceData.results) {
-          resultData = sourceData.results;
-        }
-        
-        // Extract categories and issues if available (V2 API format)
-        const categories = resultData.categories || {};
-        
-        // Get the data.data property if it exists (nested structure)
-        const innerData = resultData.data || {};
-        
-        // Count issues for display - check all possible paths
-        const issuesCount = 
-          resultData.totalIssuesCount != null ? resultData.totalIssuesCount :
-          innerData.totalIssuesCount != null ? innerData.totalIssuesCount :
-          resultData.criticalIssuesCount != null ? resultData.criticalIssuesCount :
-          (categories.metadata?.issues?.length || 0) +
-          (categories.content?.issues?.length || 0) +
-          (categories.technical?.issues?.length || 0) +
-          (categories.userExperience?.issues?.length || 0);
-        
-        // Convert v2 data format to pageAnalysis format for display compatibility
-        const pageData = resultData.pageData || innerData.pageData || {};
-        const pageAnalysis = resultData.pageAnalysis || innerData.pageAnalysis || {
-          title: pageData.title || { text: '', length: 0 },
-          metaDescription: pageData.metaDescription || { text: '', length: 0 },
-          headings: pageData.headings || { h1Count: 0, h1Texts: [], h2Count: 0, h2Texts: [] },
-          links: pageData.links || { internalCount: 0, externalCount: 0, totalCount: 0 },
-          images: pageData.images || { withoutAltCount: 0, total: 0 },
-          contentLength: pageData.content?.contentLength || 0
-        };
-        
-        // Properly normalize the score - check multiple paths for the score
-        const score = resultData.score != null ? resultData.score : 
-          innerData.score != null ? innerData.score :
-          categories.content?.score != null ? categories.content.score :
-          categories.metadata?.score !== undefined ? 
-            (categories.metadata.score + (categories.content?.score || 0) + 
-             (categories.technical?.score || 0) + (categories.userExperience?.score || 0)) / 4 : 
-            0;
-        
-        // Debug the normalized data
-        console.log("Normalized job results:", {
-          score: Math.round(score),
-          issuesFound: resultData.issuesFound != null ? resultData.issuesFound : issuesCount
-        });
-        
-        // Create a complete result with all possible data paths
-        return {
-          ...resultData,
-          score: Math.round(score),
-          issuesFound: resultData.issuesFound != null ? resultData.issuesFound : issuesCount,
-          opportunities: resultData.opportunities != null ? resultData.opportunities : Math.ceil(issuesCount / 2),
-          pageAnalysis,
-          siteAnalysis: resultData.siteAnalysis || null,
-          cached: sourceData.cached || resultData.cached || false,
-          cachedAt: sourceData.cachedAt || resultData.cachedAt || new Date().toISOString(),
-          categories, // Include categories if available (V2 API)
-          data: resultData // Include the raw data for direct access
-        };
-      };
-      
-      const processedResults = processResult(jobResultsQuery.data);
-      
-      setResults(processedResults);
-      setIsLoading(false);
-      toast('Audit completed', {
-        description: 'Results are ready to view',
-        position: 'bottom-right',
-      });
-    }
-    
-    // Handle errors with improved error reporting
-    if (submitAuditQuery.error && !results && isLoading) {
-      console.error("Submit error:", submitAuditQuery.error);
-      
-      // Extract useful error message from the error object
-      const errorMessage = getErrorMessage(submitAuditQuery.error);
-      
-      setError(`Failed to submit audit: ${errorMessage}`);
-      setIsLoading(false);
-    } else if (jobStatusQuery.error && !results && isLoading) {
-      console.error("Status error:", jobStatusQuery.error);
-      
-      // Extract useful error message from the error object
-      const errorMessage = getErrorMessage(jobStatusQuery.error);
-      
-      setError(`Failed to check job status: ${errorMessage}`);
-      setIsLoading(false);
-    } else if (jobResultsQuery.error && !results && isLoading) {
-      console.error("Results error:", jobResultsQuery.error);
-      
-      // Extract useful error message from the error object
-      const errorMessage = getErrorMessage(jobResultsQuery.error);
-      
-      setError(`Failed to get results: ${errorMessage}`);
-      setIsLoading(false);
-    }
-  }, [
-    submitAuditQuery.data, submitAuditQuery.error,
-    jobStatusQuery.data, jobStatusQuery.error,
-    jobResultsQuery.data, jobResultsQuery.error,
-    jobId, results, isLoading
-  ]);
+    performAnalysis();
+  }, [url, auditType]);
   
-  // Helper function to extract meaningful error messages
-  const getErrorMessage = (error: any): string => {
-    if (typeof error === 'string') {
-      return error;
-    }
-    
-    if (error instanceof Error) {
-      return error.message || 'Unknown error';
-    }
-    
-    if (error.response?.data?.message) {
-      return error.response.data.message;
-    }
-    
-    if (error.message) {
-      return error.message;
-    }
-    
-    return 'Unknown error occurred';
-  };
-  
-  // Handle try again button click with improved error handling
-  const handleTryAgain = () => {
+  const performAnalysis = async () => {
     setIsLoading(true);
-    setProgress(0);
     setError(null);
-    setJobId(null);
-    setResults(null);
+    setProgress(10);
     
-    // Add a small delay to ensure UI updates before making the request
-    setTimeout(() => {
-      console.log('Retrying analysis...');
-      submitAuditQuery.refetch();
-    }, 300);
+    try {
+      console.log(`🚀 Starting ${auditType} analysis for:`, url);
+      
+      // First, check if API is healthy
+      setProgress(20);
+      try {
+        await robustApiService.checkHealth();
+        console.log('✅ API health check passed');
+      } catch (healthError) {
+        console.error('❌ API health check failed:', healthError);
+        throw new Error(`API is not accessible: ${healthError.message}`);
+      }
+      
+      setProgress(30);
+      
+      let analysisResult;
+      
+      if (auditType === 'site') {
+        // Enhanced analysis with site crawling
+        setAnalysisType('enhanced');
+        setProgress(40);
+        
+        analysisResult = await robustApiService.analyzeEnhanced(url, {
+          maxPages: 10,
+          maxDepth: 2,
+          crawlSite: true
+        });
+      } else {
+        // Basic SEO analysis
+        setAnalysisType('basic');
+        setProgress(40);
+        
+        analysisResult = await robustApiService.analyzeSeo(url);
+      }
+      
+      setProgress(80);
+      
+      if (!analysisResult || !analysisResult.data) {
+        throw new Error('No analysis data received from API');
+      }
+      
+      console.log('✅ Analysis completed successfully:', analysisResult);
+      
+      // Validate the data one more time
+      if (analysisResult.data.pageData && analysisResult.data.pageData.title) {
+        const title = analysisResult.data.pageData.title.text;
+        if (title.includes('Fallback') || title.includes('Website') || 
+            analysisResult.message.includes('fallback')) {
+          console.warn('⚠️ Received suspicious data that might be mock');
+          throw new Error('Received mock data instead of real analysis. Please try again.');
+        }
+      }
+      
+      setResults(analysisResult);
+      setProgress(100);
+      
+      // Show success message
+      toast.success('Analysis completed successfully!');
+      
+    } catch (error) {
+      console.error('❌ Analysis failed:', error);
+      setError(error.message || 'Analysis failed');
+      toast.error(`Analysis failed: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
   
-  // Handle back to home button click
-  const handleBackToHome = () => {
+  const handleRetry = () => {
+    performAnalysis();
+  };
+  
+  const handleNewAnalysis = () => {
     navigate('/');
   };
   
-  // Update progress based on job status
-  useEffect(() => {
-    if (isLoading) {
-      let statusText = 'Submitting URL...';
-      
-      if (jobStatusQuery.data?.job) {
-        const jobStatus = jobStatusQuery.data.job;
-        setProgress(jobStatus.progress || 10);
-        
-        if (jobStatus.status === 'queued') {
-          statusText = 'Queued for processing...';
-        } else if (jobStatus.status === 'processing') {
-          statusText = jobStatus.message || 'Processing audit...';
-        } else if (jobStatus.status === 'completed') {
-          statusText = 'Retrieving results...';
-          setProgress(95);
-        }
-      } else if (submitAuditQuery.isLoading) {
-        statusText = 'Analyzing URL...';
-        
-        // Animate progress during analysis
-        const timer = setInterval(() => {
-          setProgress(prev => {
-            if (prev < 75) return prev + 5;
-            return prev;
-          });
-        }, 1000);
-        
-        return () => clearInterval(timer);
-      }
-    }
-  }, [isLoading, jobStatusQuery.data, submitAuditQuery.isLoading]);
-
-  // Show loading state
   if (isLoading) {
-    let statusText = 'Submitting URL...';
-    
-    if (jobStatusQuery.data?.job) {
-      const jobStatus = jobStatusQuery.data.job;
-      
-      if (jobStatus.status === 'queued') {
-        statusText = 'Queued for processing...';
-      } else if (jobStatus.status === 'processing') {
-        statusText = jobStatus.message || 'Processing audit...';
-      } else if (jobStatus.status === 'completed') {
-        statusText = 'Retrieving results...';
-      }
-    } else if (submitAuditQuery.isLoading) {
-      statusText = 'Analyzing URL...';
-    }
-    
     return (
-      <div className="container max-w-3xl mx-auto pt-12 px-4">
-        <div className="bg-card p-8 rounded-lg shadow-lg border border-white/5">
-          <div className="flex flex-col items-center justify-center py-6">
-            <CircularProgress value={progress} size={120} strokeWidth={6} />
-            <h3 className="text-xl font-semibold mt-6 mb-2">Analyzing {url}</h3>
-            <div className="bg-primary/20 text-primary-foreground text-xs px-3 py-1 rounded-full mb-3">
-              {auditType === 'site' ? 'Site-wide Audit (up to 20 pages)' : 'Quick Single-page Audit'}
-            </div>
-            <p className="text-sm text-muted-foreground mb-4">{statusText}</p>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow-md p-8 max-w-md w-full text-center">
+          <CircularProgress progress={progress} />
+          <h2 className="text-xl font-semibold mt-4 mb-2">
+            Analyzing Website
+          </h2>
+          <p className="text-gray-600 mb-4">
+            {progress < 30 ? 'Connecting to API...' :
+             progress < 50 ? 'Starting analysis...' :
+             progress < 80 ? `Performing ${analysisType} analysis...` :
+             'Finalizing results...'}
+          </p>
+          <p className="text-sm text-gray-500">
+            URL: {url}
+          </p>
+          <div className="mt-4 text-xs text-gray-400">
+            Analysis Type: {auditType === 'site' ? 'Site-wide Crawl' : 'Quick Analysis'}
           </div>
         </div>
       </div>
     );
   }
   
-  // Show error state
   if (error) {
     return (
-      <AuditError 
-        error={error} 
-        url={url || ''} 
-        onTryAgain={handleTryAgain}
-        onBackToHome={handleBackToHome}
-      />
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <AuditError 
+          error={error}
+          onRetry={handleRetry}
+          onNewAnalysis={handleNewAnalysis}
+        />
+      </div>
     );
   }
   
-  // Show results
-  return (
-    <div className="container max-w-5xl mx-auto pt-12 px-4 pb-20">
-      <div className="bg-card p-8 rounded-lg shadow-lg border border-white/5">
-        <AuditResults 
-          url={url || ''} 
-          pageAnalysis={results?.pageAnalysis}
-          siteAnalysis={results?.siteAnalysis}
-          score={results?.score}
-          issuesFound={results?.issuesFound}
-          opportunities={results?.opportunities}
-          cached={results?.cached}
-          cachedAt={results?.cachedAt}
-          categories={results?.categories}
-          data={results?.data} // Pass the raw data as well
-        />
-        <div className="mt-8 border-t border-white/10 pt-4 flex justify-between">
+  if (!results) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow-md p-8 max-w-md w-full text-center">
+          <div className="text-gray-500 mb-4">
+            No results available
+          </div>
           <button 
-            className="text-sm text-primary hover:underline"
-            onClick={handleTryAgain}
+            onClick={handleRetry}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
           >
-            Run Analysis Again
+            Try Again
           </button>
-          <button 
-            className="text-sm text-white/70 hover:text-white"
-            onClick={handleBackToHome}
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Analysis info header */}
+        <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                SEO Analysis Results
+              </h1>
+              <p className="text-gray-600 mt-1">
+                Analysis for: <span className="font-medium">{url}</span>
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="text-sm text-gray-500">
+                Analysis Type: {auditType === 'site' ? 'Site-wide Crawl' : 'Quick Analysis'}
+              </div>
+              <div className="text-sm text-gray-500">
+                {results.cached ? 'Cached Result' : 'Fresh Analysis'}
+              </div>
+              {results.cached && results.cachedAt && (
+                <div className="text-xs text-gray-400">
+                  Cached: {new Date(results.cachedAt).toLocaleString()}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        {/* Results */}
+        <AuditResults results={results} />
+        
+        {/* Action buttons */}
+        <div className="mt-8 text-center">
+          <button
+            onClick={handleNewAnalysis}
+            className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 mr-4"
           >
-            Back to Home
+            Analyze Another Website
+          </button>
+          <button
+            onClick={handleRetry}
+            className="bg-gray-600 text-white px-6 py-3 rounded-md hover:bg-gray-700"
+          >
+            Re-analyze This Website
           </button>
         </div>
       </div>
