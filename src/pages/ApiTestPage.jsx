@@ -1,196 +1,308 @@
-import React, { useState } from 'react';
-import realApiService from '../services/realApiService';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Badge } from '../components/ui/badge';
+import { Alert, AlertDescription } from '../components/ui/alert';
+import { CheckCircle, XCircle, Clock, Zap } from 'lucide-react';
+import { 
+  analyzeSeo, 
+  analyzeEnhanced, 
+  checkHealth, 
+  testConnection 
+} from '../services/robustApiService';
 
 const ApiTestPage = () => {
-  const [url, setUrl] = useState('https://example.com');
+  const [testUrl, setTestUrl] = useState('https://example.com');
   const [isLoading, setIsLoading] = useState(false);
-  const [results, setResults] = useState(null);
-  const [error, setError] = useState(null);
+  const [results, setResults] = useState({});
   const [healthStatus, setHealthStatus] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState(null);
 
-  // Test API health
-  const testHealth = async () => {
+  // Check API health on component mount
+  useEffect(() => {
+    const checkApiHealth = async () => {
+      try {
+        const health = await checkHealth();
+        setHealthStatus({ status: 'ok', data: health });
+      } catch (error) {
+        setHealthStatus({ status: 'error', message: error.message });
+      }
+    };
+
+    checkApiHealth();
+  }, []);
+
+  const runTest = async (testType, testFunction) => {
+    setIsLoading(true);
+    setResults(prev => ({
+      ...prev,
+      [testType]: { status: 'loading', message: 'Running test...' }
+    }));
+
     try {
-      setIsLoading(true);
-      setError(null);
-      const health = await realApiService.checkHealth();
-      setHealthStatus(health);
-    } catch (err) {
-      setError(err.message);
-      setHealthStatus(null);
+      const result = await testFunction();
+      setResults(prev => ({
+        ...prev,
+        [testType]: { 
+          status: 'success', 
+          data: result,
+          message: 'Test completed successfully'
+        }
+      }));
+    } catch (error) {
+      setResults(prev => ({
+        ...prev,
+        [testType]: { 
+          status: 'error', 
+          message: error.message,
+          error: error
+        }
+      }));
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Test SEO analysis
-  const testSeoAnalysis = async () => {
-    if (!url.trim()) {
-      setError('Please enter a URL');
-      return;
-    }
+  const testBasicAnalysis = () => {
+    return runTest('basicAnalysis', () => analyzeSeo(testUrl));
+  };
 
-    try {
-      setIsLoading(true);
-      setError(null);
-      setResults(null);
-      
-      console.log('🚀 Testing SEO analysis...');
-      const result = await realApiService.analyzeSeo(url);
-      setResults(result);
-      
-    } catch (err) {
-      console.error('❌ SEO analysis test failed:', err);
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
+  const testEnhancedAnalysis = () => {
+    return runTest('enhancedAnalysis', () => analyzeEnhanced(testUrl, { maxPages: 3 }));
+  };
+
+  const testApiConnection = () => {
+    return runTest('connection', testConnection);
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'loading':
+        return <Clock className="h-4 w-4 animate-spin" />;
+      case 'success':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'error':
+        return <XCircle className="h-4 w-4 text-red-500" />;
+      default:
+        return null;
     }
   };
 
-  // Test enhanced analysis
-  const testEnhancedAnalysis = async () => {
-    if (!url.trim()) {
-      setError('Please enter a URL');
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      setError(null);
-      setResults(null);
-      
-      console.log('🚀 Testing enhanced analysis...');
-      const result = await realApiService.analyzeEnhanced(url, {
-        maxPages: 3,
-        maxDepth: 1
-      });
-      setResults(result);
-      
-    } catch (err) {
-      console.error('❌ Enhanced analysis test failed:', err);
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'loading':
+        return <Badge variant="secondary">Running</Badge>;
+      case 'success':
+        return <Badge variant="success">Success</Badge>;
+      case 'error':
+        return <Badge variant="destructive">Error</Badge>;
+      default:
+        return <Badge variant="outline">Ready</Badge>;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">
-            🔧 API Fix Test Page
-          </h1>
-          
-          <p className="text-gray-600 mb-6">
-            This page tests the backend API fix to ensure we're getting real data instead of mock data.
-          </p>
+    <div className="container mx-auto px-4 py-8 max-w-6xl">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">API Integration Test Suite</h1>
+        <p className="text-gray-600">
+          Verify that the frontend is properly integrated with the backend API
+        </p>
+      </div>
 
-          {/* Health Check Section */}
-          <div className="mb-8 p-4 border rounded-lg">
-            <h2 className="text-xl font-semibold mb-4">Health Check</h2>
-            <button 
-              onClick={testHealth}
-              disabled={isLoading}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-            >
-              {isLoading ? 'Testing...' : 'Test API Health'}
-            </button>
-            
-            {healthStatus && (
-              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded">
-                <p className="text-green-800">
-                  ✅ API Health: {healthStatus.status} - {healthStatus.message}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* URL Input */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Test URL:
-            </label>
-            <input
-              type="url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://example.com"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          {/* Test Buttons */}
-          <div className="flex gap-4 mb-6">
-            <button 
-              onClick={testSeoAnalysis}
-              disabled={isLoading}
-              className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 disabled:opacity-50"
-            >
-              {isLoading ? 'Analyzing...' : 'Test Basic SEO Analysis'}
-            </button>
-            
-            <button 
-              onClick={testEnhancedAnalysis}
-              disabled={isLoading}
-              className="bg-purple-600 text-white px-6 py-2 rounded hover:bg-purple-700 disabled:opacity-50"
-            >
-              {isLoading ? 'Analyzing...' : 'Test Enhanced Analysis'}
-            </button>
-          </div>
-
-          {/* Error Display */}
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded">
-              <h3 className="text-red-800 font-semibold">❌ Error:</h3>
-              <p className="text-red-700">{error}</p>
+      {/* API Health Status */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5" />
+            API Health Status
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {healthStatus ? (
+            <div className="flex items-center gap-2">
+              {healthStatus.status === 'ok' ? (
+                <>
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <span className="text-green-700">API is healthy</span>
+                  <Badge variant="success">Connected</Badge>
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-5 w-5 text-red-500" />
+                  <span className="text-red-700">{healthStatus.message}</span>
+                  <Badge variant="destructive">Disconnected</Badge>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 animate-spin" />
+              <span>Checking API health...</span>
             </div>
           )}
+        </CardContent>
+      </Card>
 
-          {/* Results Display */}
-          {results && (
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-4">📊 Analysis Results:</h3>
-              
-              {/* Mock Data Detection */}
-              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
-                <h4 className="font-semibold text-blue-800">Mock Data Check:</h4>
-                {results.data?.pageData?.title?.text?.includes('Test') ? (
-                  <p className="text-red-600">🚨 WARNING: Response may contain mock data</p>
-                ) : (
-                  <p className="text-green-600">✅ Real data detected - title looks authentic</p>
+      {/* Test URL Input */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Test Configuration</CardTitle>
+          <CardDescription>
+            Enter a URL to test the API integration
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2">
+            <Input
+              value={testUrl}
+              onChange={(e) => setTestUrl(e.target.value)}
+              placeholder="https://example.com"
+              className="flex-1"
+            />
+            <Button 
+              onClick={testApiConnection}
+              variant="outline"
+              disabled={isLoading}
+            >
+              Test Connection
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Test Results */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Connection Test */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              API Connection Test
+              {getStatusBadge(results.connection?.status)}
+            </CardTitle>
+            <CardDescription>
+              Tests overall API connectivity and data integrity
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button 
+              onClick={testApiConnection}
+              disabled={isLoading}
+              className="w-full mb-4"
+            >
+              {getStatusIcon(results.connection?.status)}
+              Run Connection Test
+            </Button>
+            
+            {results.connection && (
+              <Alert className={results.connection.status === 'error' ? 'border-red-200' : 'border-green-200'}>
+                <AlertDescription>
+                  {results.connection.message}
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Basic Analysis Test */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              Basic SEO Analysis
+              {getStatusBadge(results.basicAnalysis?.status)}
+            </CardTitle>
+            <CardDescription>
+              Tests the core SEO analysis functionality
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button 
+              onClick={testBasicAnalysis}
+              disabled={isLoading}
+              className="w-full mb-4"
+            >
+              {getStatusIcon(results.basicAnalysis?.status)}
+              Run Basic Analysis
+            </Button>
+            
+            {results.basicAnalysis && (
+              <div>
+                <Alert className={results.basicAnalysis.status === 'error' ? 'border-red-200' : 'border-green-200'}>
+                  <AlertDescription>
+                    {results.basicAnalysis.message}
+                  </AlertDescription>
+                </Alert>
+                
+                {results.basicAnalysis.data && (
+                  <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                    <h4 className="font-semibold mb-2">Analysis Results:</h4>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>Score: <strong>{results.basicAnalysis.data.data?.score || 'N/A'}</strong></div>
+                      <div>Status: <strong>{results.basicAnalysis.data.data?.status || 'N/A'}</strong></div>
+                      <div>Title: <strong>{results.basicAnalysis.data.data?.pageData?.title?.text || 'N/A'}</strong></div>
+                      <div>Issues: <strong>{results.basicAnalysis.data.data?.totalIssuesCount || 0}</strong></div>
+                    </div>
+                  </div>
                 )}
               </div>
+            )}
+          </CardContent>
+        </Card>
 
-              {/* Key Data Display */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div className="p-3 bg-gray-50 rounded">
-                  <strong>URL:</strong> {results.url}
-                </div>
-                <div className="p-3 bg-gray-50 rounded">
-                  <strong>Status:</strong> {results.status}
-                </div>
-                <div className="p-3 bg-gray-50 rounded">
-                  <strong>Title:</strong> {results.data?.pageData?.title?.text || 'No title'}
-                </div>
-                <div className="p-3 bg-gray-50 rounded">
-                  <strong>Score:</strong> {results.data?.score || 'No score'}
-                </div>
-              </div>
-
-              {/* Raw Response */}
-              <details className="mb-4">
-                <summary className="cursor-pointer font-semibold text-gray-700 hover:text-gray-900">
-                  🔍 View Raw Response
-                </summary>
-                <pre className="mt-2 p-4 bg-gray-100 rounded text-xs overflow-auto max-h-96">
-                  {JSON.stringify(results, null, 2)}
-                </pre>
-              </details>
-            </div>
-          )}
-        </div>
+        {/* Enhanced Analysis Test */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              Enhanced Analysis
+              {getStatusBadge(results.enhancedAnalysis?.status)}
+            </CardTitle>
+            <CardDescription>
+              Tests the enhanced analysis features
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button 
+              onClick={testEnhancedAnalysis}
+              disabled={isLoading}
+              className="w-full mb-4"
+            >
+              {getStatusIcon(results.enhancedAnalysis?.status)}
+              Run Enhanced Analysis
+            </Button>
+            
+            {results.enhancedAnalysis && (
+              <Alert className={results.enhancedAnalysis.status === 'error' ? 'border-red-200' : 'border-green-200'}>
+                <AlertDescription>
+                  {results.enhancedAnalysis.message}
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Results Summary */}
+      {Object.keys(results).length > 0 && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Test Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {Object.entries(results).map(([testType, result]) => (
+                <div key={testType} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                  <span className="capitalize">{testType.replace(/([A-Z])/g, ' $1')}</span>
+                  <div className="flex items-center gap-2">
+                    {getStatusIcon(result.status)}
+                    {getStatusBadge(result.status)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

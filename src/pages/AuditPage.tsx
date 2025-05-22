@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
-import robustApiService from '../services/robustApiService';
+import { bypassCorsAnalyze } from '../services/corsBypassService.js';
+import * as robustApiService from '../services/robustApiService.js';
 import AuditResults from '../components/audit/AuditResults';
 import AuditError from '../components/audit/AuditError';
 import CircularProgress from '../components/CircularProgress';
@@ -59,7 +60,7 @@ const AuditPage: React.FC = () => {
         setAnalysisType('enhanced');
         setProgress(40);
         
-        analysisResult = await robustApiService.analyzeEnhanced(url, {
+        analysisResult = await bypassCorsAnalyze(url, {
           maxPages: 10,
           maxDepth: 2,
           crawlSite: true
@@ -69,7 +70,7 @@ const AuditPage: React.FC = () => {
         setAnalysisType('basic');
         setProgress(40);
         
-        analysisResult = await robustApiService.analyzeSeo(url);
+        analysisResult = await bypassCorsAnalyze(url);
       }
       
       setProgress(80);

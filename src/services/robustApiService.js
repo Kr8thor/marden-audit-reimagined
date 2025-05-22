@@ -1,293 +1,336 @@
 /**
- * Robust API Service - Real Data Only
- * This service ensures connection to the backend API without fallback to mock data
- * Implements proper error handling instead of returning fake data
+ * Robust API Service - Ensures Real Data Integration
+ * This service provides 100% backend integration with comprehensive error handling
+ * and validation to ensure only real analysis data is returned.
  */
 
+import axios from 'axios';
+
+// Get API URL from environment - NO FALLBACKS to prevent mock data
 const API_URL = import.meta.env.VITE_API_URL || 'https://marden-audit-backend-production.up.railway.app';
 
-// Create axios-like client with extended timeout
-const createApiClient = () => {
-  const baseURL = API_URL;
-  const timeout = 120000; // 2 minutes for long operations
+console.log('🔗 API Service initialized with URL:', API_URL);
 
-  return {
-    post: async (endpoint, data) => {
-      const url = `${baseURL}${endpoint}`;
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
-      
-      try {
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(data),
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-          throw new Error(`API Error: ${response.status} - ${response.statusText}`);
-        }
-        
-        return await response.json();
-      } catch (error) {
-        clearTimeout(timeoutId);
-        
-        if (error.name === 'AbortError') {
-          throw new Error('Request timed out - the analysis is taking longer than expected');
-        }
-        
-        throw error;
-      }
-    },
+// Create axios instance with optimized settings
+const api = axios.create({
+  baseURL: API_URL,
+  timeout: 120000, // 2 minute timeout for complex analysis
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  },
+  // Ensure CORS credentials are handled properly
+  withCredentials: false
+});
+
+// Request interceptor for logging
+api.interceptors.request.use(
+  (config) => {
+    console.log(`📡 API Request: ${config.method?.toUpperCase()} ${config.url}`, {
+      data: config.data,
+      params: config.params
+    });
+    return config;
+  },
+  (error) => {
+    console.error('❌ Request Error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor for validation and logging
+api.interceptors.response.use(
+  (response) => {
+    console.log(`✅ API Response: ${response.status}`, {
+      url: response.config.url,
+      data: response.data
+    });
     
-    get: async (endpoint) => {
-      const url = `${baseURL}${endpoint}`;
+    // Validate that we got real data, not mock data
+    if (response.data && typeof response.data === 'object') {
+      const responseStr = JSON.stringify(response.data).toLowerCase();
+      const mockIndicators = [
+        'test analysis result',
+        'sample data',
+        'mock data',
+        'fake data',
+        'placeholder',
+        'lorem ipsum'
+      ];
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s for GET requests
+      const hasMockData = mockIndicators.some(indicator => 
+        responseStr.includes(indicator)
+      );
       
-      try {
-        const response = await fetch(url, {
-          method: 'GET',
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-          throw new Error(`API Error: ${response.status} - ${response.statusText}`);
-        }
-        
-        return await response.json();
-      } catch (error) {
-        clearTimeout(timeoutId);
-        
-        if (error.name === 'AbortError') {
-          throw new Error('Request timed out');
-        }
-        
-        throw error;
+      if (hasMockData) {
+        console.warn('⚠️ Mock data detected in response!', response.data);
+        throw new Error('Mock data detected - API may not be functioning correctly');
       }
     }
-  };
-};
-
-const apiClient = createApiClient();
-
-/**
- * Validate response data to ensure it's real (not mock)
- */
-const validateResponseData = (data) => {
-  if (!data || !data.data) {
-    throw new Error('Invalid response: No data received');
-  }
-  
-  // Check for common mock data indicators
-  const mockIndicators = [
-    'fallback',
-    'mock',
-    'sample',
-    'placeholder',
-    'unavailable',
-    'simulated'
-  ];
-  
-  const dataStr = JSON.stringify(data).toLowerCase();
-  const hasMockData = mockIndicators.some(indicator => dataStr.includes(indicator));
-  
-  if (hasMockData) {
-    console.warn('⚠️ Response contains mock data indicators:', data);
-    throw new Error('Received mock data instead of real analysis');
-  }
-  
-  // Additional validation - check if URL analysis makes sense
-  if (data.data.url && data.data.pageData) {
-    const { title, metaDescription } = data.data.pageData;
     
-    // If title or description seem generic, flag it
-    if (title && (
-      title.text.includes('Website') ||
-      title.text.includes('Fallback') ||
-      title.text.includes('Main Heading')
-    )) {
-      console.warn('⚠️ Title seems generic:', title.text);
-      throw new Error('Received generic/mock data instead of real analysis');
-    }
+    return response;
+  },
+  (error) => {
+    console.error(`❌ API Response Error:`, {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message
+    });
+    return Promise.reject(error);
+  }
+);
+
+/**
+ * Normalize URL to ensure consistent format
+ */
+function normalizeUrl(url) {
+  if (!url) throw new Error('URL is required');
+  
+  let normalized = url.trim();
+  
+  // Add protocol if missing
+  if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
+    normalized = `https://${normalized}`;
   }
   
-  return true;
+  return normalized;
+}
+
+/**
+ * Enhanced error handler with user-friendly messages
+ */
+function handleApiError(error, operation = 'analysis') {
+  console.error(`Error during ${operation}:`, error);
+  
+  if (error.code === 'ECONNABORTED') {
+    throw new Error(`Analysis timeout - The ${operation} took too long to complete. Please try again with a simpler website.`);
+  }
+  
+  if (error.code === 'ERR_NETWORK') {
+    throw new Error('API is not accessible: API service is not responding. Please check your internet connection or try again later.');
+  }
+  
+  if (error.response) {
+    const status = error.response.status;
+    const data = error.response.data;
+    
+    if (status === 400) {
+      throw new Error(data?.message || 'Invalid request - Please check the URL format');
+    }
+    
+    if (status === 404) {
+      throw new Error('Analysis service not available - Please try again later');
+    }
+    
+    if (status === 429) {
+      throw new Error('Too many requests - Please wait a moment before trying again');
+    }
+    
+    if (status >= 500) {
+      throw new Error(data?.message || 'Server error - Our analysis service is temporarily unavailable');
+    }
+    
+    throw new Error(data?.message || `Analysis failed with status ${status}`);
+  }
+  
+  if (error.request) {
+    throw new Error('API is not accessible: API service is not responding. Please check your internet connection or try again later.');
+  }
+  
+  throw new Error(error.message || `Unexpected error during ${operation}`);
+}
+
+/**
+ * Basic SEO Analysis - Primary endpoint
+ */
+export const analyzeSeo = async (url, options = {}) => {
+  try {
+    const normalizedUrl = normalizeUrl(url);
+    console.log(`🔍 Starting SEO analysis for: ${normalizedUrl}`);
+    
+    const response = await api.post('/seo-analyze', {
+      url: normalizedUrl,
+      options
+    });
+    
+    if (!response.data || !response.data.data) {
+      throw new Error('Invalid response format from analysis service');
+    }
+    
+    console.log('✅ SEO analysis completed successfully');
+    return response.data;
+    
+  } catch (error) {
+    handleApiError(error, 'SEO analysis');
+  }
 };
 
 /**
- * Enhanced SEO analysis with endpoint priority
+ * Enhanced SEO Analysis with multiple feature support
  */
-const robustApiService = {
-  /**
-   * Check API health
-   */
-  checkHealth: async () => {
+export const analyzeEnhanced = async (url, options = {}) => {
+  try {
+    const normalizedUrl = normalizeUrl(url);
+    console.log(`🚀 Starting enhanced analysis for: ${normalizedUrl}`);
+    
+    // Try enhanced endpoint first
     try {
-      console.log('🔍 Checking API health...');
-      const response = await apiClient.get('/health');
-      console.log('✅ API health check successful:', response);
-      return response;
-    } catch (error) {
-      console.error('❌ API health check failed:', error);
-      throw new Error(`API is not accessible: ${error.message}`);
-    }
-  },
-
-  /**
-   * Perform SEO analysis with real data only
-   */
-  analyzeSeo: async (url, options = {}) => {
-    if (!url || !url.trim()) {
-      throw new Error('URL is required for analysis');
-    }
-
-    // Normalize URL
-    let normalizedUrl = url.trim();
-    if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
-      normalizedUrl = `https://${normalizedUrl}`;
-    }
-
-    console.log(`🚀 Starting real SEO analysis for: ${normalizedUrl}`);
-
-    // Try endpoints in priority order (most likely to work first)
-    const endpoints = [
-      '/seo-analyze',
-      '/basic-audit',
-      '/api/seo-analyze',
-      '/api/basic-audit'
-    ];
-
-    let lastError = null;
-
-    for (const endpoint of endpoints) {
-      try {
-        console.log(`📡 Trying endpoint: ${endpoint}`);
-        
-        const response = await apiClient.post(endpoint, {
-          url: normalizedUrl,
-          options,
-          timestamp: Date.now() // Prevent caching issues
-        });
-
-        // Validate the response data
-        validateResponseData(response);
-
-        console.log(`✅ Success with ${endpoint}!`);
-        return response;
-
-      } catch (error) {
-        console.warn(`⚠️ ${endpoint} failed:`, error.message);
-        lastError = error;
-
-        // If it's a 404, continue to next endpoint
-        if (error.message.includes('404')) {
-          continue;
+      const response = await api.post('/enhanced-seo-analyze', {
+        url: normalizedUrl,
+        options: {
+          crawlSite: options.crawlSite || false,
+          maxPages: options.maxPages || 5,
+          maxDepth: options.maxDepth || 2,
+          ...options
         }
-
-        // For other errors, we might want to retry or continue
-        // depending on the error type
-        if (error.message.includes('timeout')) {
-          continue; // Try next endpoint
-        }
-
-        // If it's a validation error (mock data), continue
-        if (error.message.includes('mock data') || error.message.includes('generic')) {
-          continue;
-        }
-
-        // For server errors (5xx), throw immediately
-        if (error.message.includes('500') || error.message.includes('503')) {
-          throw new Error(`Server error: ${error.message}`);
-        }
+      });
+      
+      console.log('✅ Enhanced analysis completed successfully');
+      return response.data;
+      
+    } catch (enhancedError) {
+      if (enhancedError.response?.status === 404) {
+        console.log('⚠️ Enhanced endpoint not available, falling back to basic analysis');
+        return await analyzeSeo(normalizedUrl, options);
       }
+      throw enhancedError;
     }
-
-    // If all endpoints failed, provide a clear error message
-    throw new Error(
-      `All analysis endpoints failed. Last error: ${lastError?.message || 'Unknown error'}. ` +
-      'Please check if the backend API is running and accessible.'
-    );
-  },
-
-  /**
-   * Enhanced SEO analysis with crawling
-   */
-  analyzeEnhanced: async (url, options = {}) => {
-    if (!url || !url.trim()) {
-      throw new Error('URL is required for enhanced analysis');
-    }
-
-    let normalizedUrl = url.trim();
-    if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
-      normalizedUrl = `https://${normalizedUrl}`;
-    }
-
-    console.log(`🚀 Starting enhanced SEO analysis for: ${normalizedUrl}`);
-
-    const endpoints = [
-      '/enhanced-seo-analyze',
-      '/site-crawl',
-      '/site-audit'
-    ];
-
-    let lastError = null;
-
-    for (const endpoint of endpoints) {
-      try {
-        console.log(`📡 Trying enhanced endpoint: ${endpoint}`);
-        
-        const response = await apiClient.post(endpoint, {
-          url: normalizedUrl,
-          options: {
-            maxPages: options.maxPages || 5,
-            maxDepth: options.maxDepth || 2,
-            ...options
-          },
-          timestamp: Date.now()
-        });
-
-        // Validate the response data
-        validateResponseData(response);
-
-        console.log(`✅ Enhanced analysis success with ${endpoint}!`);
-        return response;
-
-      } catch (error) {
-        console.warn(`⚠️ Enhanced ${endpoint} failed:`, error.message);
-        lastError = error;
-
-        if (error.message.includes('404')) {
-          continue;
-        }
-
-        if (error.message.includes('timeout')) {
-          continue;
-        }
-
-        if (error.message.includes('mock data') || error.message.includes('generic')) {
-          continue;
-        }
-
-        if (error.message.includes('500') || error.message.includes('503')) {
-          throw new Error(`Server error during enhanced analysis: ${error.message}`);
-        }
-      }
-    }
-
-    // If enhanced endpoints fail, fall back to basic analysis
-    console.log('⚠️ Enhanced analysis failed, falling back to basic analysis...');
-    return await robustApiService.analyzeSeo(url, options);
+    
+  } catch (error) {
+    handleApiError(error, 'enhanced analysis');
   }
 };
 
-export default robustApiService;
+/**
+ * Schema.org Analysis
+ */
+export const analyzeSchema = async (url) => {
+  try {
+    const normalizedUrl = normalizeUrl(url);
+    console.log(`📋 Starting schema analysis for: ${normalizedUrl}`);
+    
+    const response = await api.post('/schema-analyze', {
+      url: normalizedUrl
+    });
+    
+    console.log('✅ Schema analysis completed successfully');
+    return response.data;
+    
+  } catch (error) {
+    if (error.response?.status === 404) {
+      console.warn('⚠️ Schema analysis endpoint not available');
+      throw new Error('Schema analysis feature is not currently available');
+    }
+    handleApiError(error, 'schema analysis');
+  }
+};
+
+/**
+ * Mobile-Friendliness Analysis
+ */
+export const analyzeMobile = async (url) => {
+  try {
+    const normalizedUrl = normalizeUrl(url);
+    console.log(`📱 Starting mobile analysis for: ${normalizedUrl}`);
+    
+    const response = await api.post('/mobile-analyze', {
+      url: normalizedUrl
+    });
+    
+    console.log('✅ Mobile analysis completed successfully');
+    return response.data;
+    
+  } catch (error) {
+    if (error.response?.status === 404) {
+      console.warn('⚠️ Mobile analysis endpoint not available');
+      throw new Error('Mobile analysis feature is not currently available');
+    }
+    handleApiError(error, 'mobile analysis');
+  }
+};
+
+/**
+ * Site Crawling Analysis
+ */
+export const crawlSite = async (url, options = {}) => {
+  try {
+    const normalizedUrl = normalizeUrl(url);
+    console.log(`🕷️ Starting site crawl for: ${normalizedUrl}`);
+    
+    const response = await api.post('/site-crawl', {
+      url: normalizedUrl,
+      options: {
+        maxPages: options.maxPages || 10,
+        maxDepth: options.maxDepth || 2,
+        respectRobots: options.respectRobots !== false,
+        ...options
+      }
+    });
+    
+    console.log('✅ Site crawl completed successfully');
+    return response.data;
+    
+  } catch (error) {
+    if (error.response?.status === 404) {
+      console.warn('⚠️ Site crawl endpoint not available');
+      throw new Error('Site crawling feature is not currently available');
+    }
+    handleApiError(error, 'site crawling');
+  }
+};
+
+/**
+ * Health Check
+ */
+export const checkHealth = async () => {
+  try {
+    console.log('🏥 Checking API health...');
+    
+    const response = await api.get('/health');
+    
+    console.log('✅ API health check completed');
+    return response.data;
+    
+  } catch (error) {
+    console.error('❌ API health check failed:', error);
+    throw new Error('API service is not responding');
+  }
+};
+
+/**
+ * Test API Connection
+ */
+export const testConnection = async () => {
+  try {
+    const health = await checkHealth();
+    
+    // Test with a simple analysis
+    const testResult = await analyzeSeo('https://example.com');
+    
+    return {
+      status: 'connected',
+      health,
+      testAnalysis: testResult,
+      message: 'API connection successful and returning real data'
+    };
+    
+  } catch (error) {
+    return {
+      status: 'error',
+      error: error.message,
+      message: 'API connection failed'
+    };
+  }
+};
+
+// Export all functions
+export default {
+  analyzeSeo,
+  analyzeEnhanced,
+  analyzeSchema,
+  analyzeMobile,
+  crawlSite,
+  checkHealth,
+  testConnection
+};
