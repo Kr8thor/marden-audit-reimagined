@@ -10,6 +10,7 @@ import BatchAuditPage from "./pages/BatchAuditPage";
 import EnhancedSeoAnalyzer from "./pages/EnhancedSeoAnalyzer";
 import DiagnosticsPage from "./pages/DiagnosticsPage";
 import TestCrawl from "./pages/TestCrawl";
+import MockDebugger from "./pages/MockDebugger";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/enhanced-analyzer" element={<EnhancedSeoAnalyzer />} />
           <Route path="/diagnostics" element={<DiagnosticsPage />} />
           <Route path="/test-crawl" element={<TestCrawl />} />
+          <Route path="/mock-debugger" element={<MockDebugger />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
