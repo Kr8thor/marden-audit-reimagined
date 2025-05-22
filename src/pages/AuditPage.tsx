@@ -3,6 +3,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { bypassCorsAnalyze } from '../services/corsBypassService.js';
 import * as robustApiService from '../services/robustApiService.js';
+import * as enhancedApiService from '../services/enhancedApiService.js';
 import AuditResults from '../components/audit/AuditResults';
 import AuditError from '../components/audit/AuditError';
 import CircularProgress from '../components/CircularProgress';
@@ -44,7 +45,7 @@ const AuditPage: React.FC = () => {
       // First, check if API is healthy
       setProgress(20);
       try {
-        await robustApiService.checkHealth();
+        await enhancedApiService.checkHealth();
         console.log('✅ API health check passed');
       } catch (healthError) {
         console.error('❌ API health check failed:', healthError);

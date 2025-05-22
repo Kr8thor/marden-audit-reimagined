@@ -12,6 +12,7 @@ import DiagnosticsPage from "./pages/DiagnosticsPage";
 import TestCrawl from "./pages/TestCrawl";
 import MockDebugger from "./pages/MockDebugger";
 import ApiTestPage from "./pages/ApiTestPage";
+import ApiDiagnostics from "./pages/ApiDiagnostics";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ const App = () => (
           <Route path="/test-crawl" element={<TestCrawl />} />
           <Route path="/mock-debugger" element={<MockDebugger />} />
           <Route path="/api-test" element={<ApiTestPage />} />
+          <Route path="/api-diagnostics" element={<ApiDiagnostics />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
