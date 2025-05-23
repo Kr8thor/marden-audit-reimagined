@@ -2,13 +2,18 @@ import React from 'react';
 import { AlertTriangle, RefreshCw, Home, ExternalLink } from 'lucide-react';
 
 interface AuditErrorProps {
-  error: string;
+  error: string | { title: string; message: string; type: string; suggestions?: string[] };
   url: string;
   onTryAgain: () => void;
   onBackToHome: () => void;
 }
 
 const AuditError: React.FC<AuditErrorProps> = ({ error, url, onTryAgain, onBackToHome }) => {
+  // Handle both string and object error formats
+  const errorInfo = typeof error === 'string' 
+    ? { title: 'Analysis Error', message: error, type: 'error', suggestions: [] }
+    : error;
+  
   // Provide specific troubleshooting tips based on the error message
   const getTroubleshootingTips = (errorMsg: string) => {
     if (errorMsg.includes('Failed to fetch') || errorMsg.includes('Network error')) {
@@ -51,7 +56,9 @@ const AuditError: React.FC<AuditErrorProps> = ({ error, url, onTryAgain, onBackT
     ];
   };
   
-  const tips = getTroubleshootingTips(error);
+  const tips = errorInfo.suggestions && errorInfo.suggestions.length > 0 
+    ? errorInfo.suggestions 
+    : getTroubleshootingTips(errorInfo.message);
   
   return (
     <div className="container max-w-3xl mx-auto pt-12 px-4">

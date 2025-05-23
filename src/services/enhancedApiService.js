@@ -1,157 +1,174 @@
 /**
- * Enhanced API Service with Better Error Handling
- * This service provides robust error detection and reporting
+ * Enhanced API Service with proper error handling
  */
 
 import axios from 'axios';
+import { processAnalysisResult, AnalysisError, ErrorTypes, getErrorDisplayInfo } from '../utils/errorHandler';
 
-// Get API URL from environment
-const API_URL = import.meta.env.VITE_API_URL || 'https://marden-audit-backend-production.up.railway.app';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://marden-audit-backend-production.up.railway.app';
 
-console.log('🔗 Enhanced API Service initialized with URL:', API_URL);
-
-// Create axios instance with enhanced settings
-const api = axios.create({
-  baseURL: API_URL,
-  timeout: 30000, // 30 second timeout
+// Create axios instance with proper configuration
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 120000, // 2 minutes for complex analysis
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
-  },
-  withCredentials: false
+  }
 });
 
-// Enhanced error handling
-const handleApiError = (error, operation) => {
-  console.error(`❌ ${operation} failed:`, error);
-  
-  if (error.code === 'ECONNABORTED') {
-    throw new Error(`${operation} timed out. The server might be overloaded.`);
+// Request interceptor for logging
+apiClient.interceptors.request.use(
+  (config) => {
+    console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.url}`);
+    return config;
+  },
+  (error) => {
+    console.error('❌ API Request Error:', error);
+    return Promise.reject(error);
   }
-  
-  if (error.response) {
-    // Server responded with error status
-    const status = error.response.status;
-    const message = error.response.data?.message || error.response.statusText;
-    
-    if (status >= 500) {
-      throw new Error(`Server error (${status}): ${message}`);
-    } else if (status === 404) {
-      throw new Error(`Endpoint not found (${status}): The requested service is not available.`);
-    } else if (status >= 400) {
-      throw new Error(`Request error (${status}): ${message}`);
-    }
-    
-    throw new Error(`HTTP ${status}: ${message}`);
-  } else if (error.request) {
-    // Network error - no response received
-    console.error('Network error details:', error.request);
-    throw new Error(`Network error: Cannot connect to API server. Please check your internet connection.`);
-  } else {
-    // Something else happened
-    throw new Error(`Unexpected error: ${error.message}`);
-  }
-};
+);
 
-/**
- * Enhanced Health Check with detailed error reporting
- */
+// Response interceptor for logging
+apiClient.interceptors.response.use(
+  (response) => {
+    console.log(`✅ API Response: ${response.status} ${response.config.url}`);
+    return response;
+  },
+  (error) => {
+    console.error(`❌ API Response Error: ${error.response?.status} ${error.config?.url}`, error.message);
+    return Promise.reject(error);
+  }
+);
+
 export const checkHealth = async () => {
   try {
-    console.log('🏥 Checking API health...');
-    
-    const response = await api.get('/health');
-    
-    console.log('✅ API health check completed:', response.data);
+    const response = await apiClient.get('/health');
     return response.data;
-    
   } catch (error) {
-    handleApiError(error, 'Health check');
+    throw new AnalysisError(
+      'API service is not available',
+      ErrorTypes.SERVER_ERROR,
+      error
+    );
   }
 };
 
-/**
- * Enhanced SEO Analysis with better error handling
- */
-export const analyzeSeo = async (url, options = {}) => {
-  try {
-    console.log(`🔍 Starting SEO analysis for: ${url}`);
-    
-    const response = await api.post('/seo-analyze', {
-      url: url,
-      options: options
-    });
-    
-    if (response.data.status === 'ok' && response.data.data) {
-      console.log('✅ SEO analysis completed successfully');
-      return response.data;
-    } else {
-      throw new Error(`Invalid response: ${response.data.message || 'Unknown error'}`);
-    }
-    
-  } catch (error) {
-    handleApiError(error, 'SEO analysis');
+export const analyzeSeo = async (url, options = {}, onProgress = null) => {
+  if (!url || typeof url !== 'string') {
+    throw new AnalysisError(
+      'Please provide a valid URL for analysis',
+      ErrorTypes.INVALID_URL
+    );
   }
-};
 
-/**
- * Test connection with multiple fallbacks
- */
-export const testConnection = async () => {
-  const results = {
-    apiUrl: API_URL,
-    timestamp: new Date().toISOString(),
-    tests: {}
-  };
-  
-  // Test 1: Health Check
-  try {
-    console.log('🧪 Testing API health...');
-    const health = await checkHealth();
-    results.tests.health = { success: true, data: health };
-    console.log('✅ Health check passed');
-  } catch (error) {
-    results.tests.health = { success: false, error: error.message };
-    console.log('❌ Health check failed:', error.message);
+  // Normalize URL
+  let normalizedUrl = url.trim();
+  if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+    normalizedUrl = `https://${normalizedUrl}`;
   }
-  
-  // Test 2: Simple Analysis
+
+  // Validate URL format
   try {
-    console.log('🧪 Testing SEO analysis...');
-    const analysis = await analyzeSeo('https://example.com');
-    results.tests.analysis = { success: true, score: analysis.data.score };
-    console.log('✅ Analysis test passed');
-  } catch (error) {
-    results.tests.analysis = { success: false, error: error.message };
-    console.log('❌ Analysis test failed:', error.message);
+    new URL(normalizedUrl);
+  } catch (urlError) {
+    throw new AnalysisError(
+      `Invalid URL format: "${url}". Please provide a valid website URL.`,
+      ErrorTypes.INVALID_URL
+    );
   }
-  
-  // Test 3: CORS Test
+
+  if (onProgress) onProgress(10, 'Connecting to analysis service...');
+
   try {
-    console.log('🧪 Testing CORS...');
-    const corsTest = await fetch(`${API_URL}/health`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json'
+    // Check API health first
+    await checkHealth();
+    
+    if (onProgress) onProgress(20, 'Starting website analysis...');
+
+    // Make the analysis request
+    const response = await apiClient.post('/seo-analyze', {
+      url: normalizedUrl,
+      options: {
+        ...options,
+        enhanced: true
       }
     });
-    
-    if (corsTest.ok) {
-      results.tests.cors = { success: true, status: corsTest.status };
-      console.log('✅ CORS test passed');
-    } else {
-      results.tests.cors = { success: false, error: `HTTP ${corsTest.status}` };
-    }
+
+    if (onProgress) onProgress(70, 'Processing analysis results...');
+
+    // Process and validate the result
+    const processedResult = processAnalysisResult(response.data, normalizedUrl);
+
+    if (onProgress) onProgress(100, 'Analysis complete!');
+
+    console.log('✅ Analysis completed successfully:', processedResult);
+    return processedResult;
+
   } catch (error) {
-    results.tests.cors = { success: false, error: error.message };
-    console.log('❌ CORS test failed:', error.message);
+    console.error('❌ Analysis failed:', error);
+
+    // Handle different types of errors
+    if (error instanceof AnalysisError) {
+      throw error;
+    }
+
+    if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+      throw new AnalysisError(
+        `The analysis timed out for "${normalizedUrl}". The website may be slow to respond.`,
+        ErrorTypes.TIMEOUT_ERROR,
+        error
+      );
+    }
+
+    if (error.response) {
+      // Server responded with error status
+      const status = error.response.status;
+      const message = error.response.data?.message || error.message;
+
+      if (status === 400) {
+        throw new AnalysisError(
+          `Invalid request: ${message}`,
+          ErrorTypes.INVALID_URL,
+          error
+        );
+      }
+
+      if (status >= 500) {
+        throw new AnalysisError(
+          'Analysis service is temporarily unavailable. Please try again.',
+          ErrorTypes.SERVER_ERROR,
+          error
+        );
+      }
+
+      throw new AnalysisError(
+        `Analysis failed: ${message}`,
+        ErrorTypes.ANALYSIS_ERROR,
+        error
+      );
+    }
+
+    if (error.request) {
+      // Network error
+      throw new AnalysisError(
+        'Unable to connect to the analysis service. Please check your internet connection.',
+        ErrorTypes.NETWORK_ERROR,
+        error
+      );
+    }
+
+    // Unknown error
+    throw new AnalysisError(
+      `Unexpected error during analysis: ${error.message}`,
+      ErrorTypes.ANALYSIS_ERROR,
+      error
+    );
   }
-  
-  return results;
 };
 
 export default {
   checkHealth,
   analyzeSeo,
-  testConnection
+  getErrorDisplayInfo
 };

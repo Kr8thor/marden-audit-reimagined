@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { bypassCorsAnalyze } from '../services/corsBypassService.js';
 import * as robustApiService from '../services/robustApiService.js';
 import * as enhancedApiService from '../services/enhancedApiService.js';
+import { AnalysisError, getErrorDisplayInfo } from '../utils/errorHandler.js';
 import AuditResults from '../components/audit/AuditResults';
 import AuditError from '../components/audit/AuditError';
 import CircularProgress from '../components/CircularProgress';
@@ -80,6 +81,24 @@ const AuditPage: React.FC = () => {
         throw new Error('No analysis data received from API');
       }
       
+      // Check if the backend returned an error in the analysis data
+      if (analysisResult.data.status === 'error' && analysisResult.data.error) {
+        const errorMessage = analysisResult.data.error.message || 'Analysis failed';
+        console.error('❌ Backend analysis error:', errorMessage);
+        
+        // Make error messages more user-friendly
+        let userFriendlyError = errorMessage;
+        if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('getaddrinfo')) {
+          userFriendlyError = `Unable to reach the website "${url}". Please check if the URL is correct and the website is accessible.`;
+        } else if (errorMessage.includes('timeout')) {
+          userFriendlyError = `The website "${url}" took too long to respond. Please try again or check if the site is working properly.`;
+        } else if (errorMessage.includes('SSL') || errorMessage.includes('certificate')) {
+          userFriendlyError = `There's an SSL certificate issue with "${url}". The website may have security configuration problems.`;
+        }
+        
+        throw new Error(userFriendlyError);
+      }
+      
       console.log('✅ Analysis completed successfully:', analysisResult);
       
       // Validate the data one more time
@@ -100,8 +119,22 @@ const AuditPage: React.FC = () => {
       
     } catch (error) {
       console.error('❌ Analysis failed:', error);
-      setError(error.message || 'Analysis failed');
-      toast.error(`Analysis failed: ${error.message}`);
+      
+      // Use enhanced error handling
+      let errorInfo;
+      if (error instanceof AnalysisError) {
+        errorInfo = getErrorDisplayInfo(error);
+      } else {
+        errorInfo = {
+          title: 'Analysis Failed',
+          message: error.message || 'An unexpected error occurred during analysis',
+          type: 'error',
+          suggestions: ['Please try again', 'Check if the website URL is correct']
+        };
+      }
+      
+      setError(errorInfo);
+      toast.error(`${errorInfo.title}: ${errorInfo.message}`);
     } finally {
       setIsLoading(false);
     }

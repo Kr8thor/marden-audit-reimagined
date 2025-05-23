@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { analyzeEnhanced } from '../services/enhancedApiService';
+import { analyzeSeo } from '../services/enhancedApiService';
 import forceCrawlSite from '../services/forcedCrawlingService';
 import EnhancedAnalysisResults from '../components/EnhancedAnalysisResults';
 
@@ -42,7 +42,7 @@ const EnhancedSeoAnalyzer = () => {
         results = await forceCrawlSite(processedUrl, options);
       } else {
         console.log("Using regular enhanced analysis");
-        results = await analyzeEnhanced(processedUrl, options);
+        results = await analyzeSeo(processedUrl, options);
       }
       
       console.log("Analysis results:", results);
