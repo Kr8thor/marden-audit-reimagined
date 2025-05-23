@@ -10,6 +10,8 @@ import {
   HealthCheckResponse,
   SeoAnalysisResponse
 } from './types';
+import { performBatchAnalysis } from '../services/realBatchApiService';
+import { performEnhancedAnalysis } from '../services/realEnhancedApiService';
 
 // Backend API URL - will use environment variable in production
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';

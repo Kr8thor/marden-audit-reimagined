@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { analyzeSeo } from '../services/enhancedApiService';
-import forceCrawlSite from '../services/forcedCrawlingService';
+import { performEnhancedAnalysis } from '../services/realEnhancedApiService';
 import EnhancedAnalysisResults from '../components/EnhancedAnalysisResults';
 
 const EnhancedSeoAnalyzer = () => {
@@ -32,20 +31,12 @@ const EnhancedSeoAnalyzer = () => {
     setError(null);
     
     try {
-      console.log("Starting analysis for: ", processedUrl);
+      console.log("Starting REAL analysis for: ", processedUrl);
       
-      let results;
+      // Always use the real API service
+      const results = await performEnhancedAnalysis(processedUrl, options);
       
-      // Use forced crawling for site crawls
-      if (options.crawlSite) {
-        console.log("Using FORCED crawling service to prevent mock data");
-        results = await forceCrawlSite(processedUrl, options);
-      } else {
-        console.log("Using regular enhanced analysis");
-        results = await analyzeSeo(processedUrl, options);
-      }
-      
-      console.log("Analysis results:", results);
+      console.log("Real analysis results:", results);
       setAnalysisResults(results);
     } catch (err) {
       console.error('Analysis failed:', err);
