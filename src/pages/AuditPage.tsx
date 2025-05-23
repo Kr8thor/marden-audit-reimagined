@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
-import { bypassCorsAnalyze } from '../services/corsBypassService.js';
-import * as robustApiService from '../services/robustApiService.js';
-import * as enhancedApiService from '../services/enhancedApiService.js';
-import { AnalysisError, getErrorDisplayInfo } from '../utils/errorHandler.js';
+import { performEnhancedAnalysis } from '../services/realEnhancedApiService';
+import * as enhancedApiService from '../services/enhancedApiService';
+import { AnalysisError, getErrorDisplayInfo } from '../utils/errorHandler';
 import AuditResults from '../components/audit/AuditResults';
 import AuditError from '../components/audit/AuditError';
 import CircularProgress from '../components/CircularProgress';
@@ -62,17 +61,22 @@ const AuditPage: React.FC = () => {
         setAnalysisType('enhanced');
         setProgress(40);
         
-        analysisResult = await bypassCorsAnalyze(url, {
+        // Use real API service for enhanced analysis
+        analysisResult = await performEnhancedAnalysis(url, {
           maxPages: 10,
           maxDepth: 2,
-          crawlSite: true
+          crawlSite: true,
+          enhanced: true
         });
       } else {
         // Basic SEO analysis
         setAnalysisType('basic');
         setProgress(40);
         
-        analysisResult = await bypassCorsAnalyze(url);
+        // Use real API service for basic analysis
+        analysisResult = await performEnhancedAnalysis(url, {
+          enhanced: true
+        });
       }
       
       setProgress(80);
@@ -234,7 +238,18 @@ const AuditPage: React.FC = () => {
         </div>
         
         {/* Results */}
-        <AuditResults results={results} />
+        <AuditResults 
+          results={results}
+          url={url || ''}
+          score={results?.data?.score}
+          categories={results?.data?.categories}
+          pageAnalysis={results?.data?.pageData}
+          issuesFound={results?.data?.totalIssuesCount}
+          opportunities={results?.data?.criticalIssuesCount}
+          cached={results?.cached}
+          cachedAt={results?.cachedAt}
+          data={results?.data}
+        />
         
         {/* Action buttons */}
         <div className="mt-8 text-center">
